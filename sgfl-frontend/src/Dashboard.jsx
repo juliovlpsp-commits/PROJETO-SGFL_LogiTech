@@ -137,7 +137,7 @@ export default function Dashboard({ token, onLogout }) {
                                 style={styles.input}
                             >
                                 <option value="PENDENTE">PENDENTE</option>
-                                <option value="EM_TRANSTIO">EM TRÂNSITO</option>
+                                <option value="EM_TRANSITO">EM TRÂNSITO</option>
                                 <option value="ENTREGUE">ENTREGUE</option>
                             </select>
                         </div>

@@ -1,5 +1,6 @@
 package com.logitech.sgfl.controller;
 
+import com.logitech.sgfl.enums.StatusEntrega;
 import com.logitech.sgfl.me.Entrega;
 import com.logitech.sgfl.repository.EntregaRepository;
 import com.logitech.sgfl.service.ServicoGerenciamento;
@@ -39,5 +40,12 @@ public class EntregaController {
     @PutMapping("/{id}/finalizar")
     public ResponseEntity<Entrega> finalizar(@PathVariable Long id) {
         return ResponseEntity.ok(servicoGerenciamento.finalizarEntrega(id));
+    }
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<Entrega> atualizarStatus(@PathVariable Long id, @RequestBody java.util.Map<String, String> body) {
+        Entrega entrega = entregaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Entrega não encontrada"));
+        entrega.setStatus(StatusEntrega.valueOf(body.get("status")));
+        return ResponseEntity.ok(entregaRepository.save(entrega));
     }
 }

@@ -182,7 +182,7 @@ export default function Dashboard({ token, onLogout }) {
                                             style={styles.selectStatus}
                                         >
                                             <option value="PENDENTE">PENDENTE</option>
-                                            <option value="EM_TRANSTIO">EM TRÂNSITO</option>
+                                            <option value="EM_TRANSITO">EM TRÂNSITO</option>
                                             <option value="ENTREGUE">ENTREGUE</option>
                                         </select>
                                     </td>
@@ -206,7 +206,7 @@ function getBadgeStyle(status) {
         color: '#fff'
     };
     if (status === 'ENTREGUE') return { ...base, backgroundColor: '#28a745' };
-    if (status === 'EM_TRANSTIO' || status === 'EM_TRÂNSITO') return { ...base, backgroundColor: '#ffc107', color: '#000' };
+    if (status === 'EM_TRANSITO') return { ...base, backgroundColor: '#ffc107', color: '#000' };
     return { ...base, backgroundColor: '#dc3545' };
 }
 

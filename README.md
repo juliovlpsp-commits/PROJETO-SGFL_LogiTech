@@ -19,7 +19,7 @@ API REST desenvolvida em Spring Boot, com validações de regras de negócio (ca
 1. Validação de Capacidade de Carga:
     - Uma entrega só pode ser alocada a um veículo se o peso total da carga (`pesoCargaKg`) for menor ou igual à capacidade suportada pelo veículo.
 
-2. **Validação de CNH do Motorista:
+2. Validação de CNH do Motorista:
     - Caminhão: Exige que o motorista possua CNH do tipo `D` ou `E`.
     - Furgão: Exige CNH válida para veículos leves/médios (categorias `B`, `C`, `D` ou `E`).
     - Tentativas de alocação incompatíveis retornam `HTTP 400 Bad Request` com mensagem descritiva do erro.

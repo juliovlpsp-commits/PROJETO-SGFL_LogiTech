@@ -40,7 +40,12 @@ API REST desenvolvida em Spring Boot, com validações de regras de negócio (ca
 No ficheiro `src/main/resources/application.properties`, configure as credenciais da sua base de dados PostgreSQL:
 
 ```properties
+# Configuração do Banco de Dados PostgreSQL
 spring.datasource.url=jdbc:postgresql://localhost:5432/sgfl_db
-spring.datasource.username=seu_usuario
-spring.datasource.password=sua_senha
+spring.datasource.username=postgres
+spring.datasource.password=sua_senha_aqui
+
+# Configuração do JPA / Hibernate
 spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true

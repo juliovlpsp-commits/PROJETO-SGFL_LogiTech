@@ -98,17 +98,52 @@ Nada de senha ou segredo direto no `application.properties` — configure via va
 | `DB_PASSWORD` | Senha do banco | `4040` |
 | `JWT_SECRET` | Chave de assinatura do token | valor de desenvolvimento embutido |
 | `JWT_EXPIRATION_MS` | Validade do token (ms) | `86400000` (24h) |
+| `FLYWAY_ENABLED` | Ativa execução de migrações automáticas | `true` |
+| `DDL_AUTO` | Estratégia de DDL do Hibernate | `validate` |
+| `RATE_LIMIT_ENABLED` | Habilita rate limiting por IP via Bucket4j | `true` |
+| `RATE_LIMIT_AUTH_CAPACITY` | Limite de requisições em `/api/auth/**` | `15` por minuto |
+| `RATE_LIMIT_API_CAPACITY` | Limite de requisições gerais em `/api/**` | `120` por minuto |
 
 No IntelliJ: **Run/Debug Configurations → Environment Variables**.
 
-### 2. Rodar o backend
+---
+
+## Execução com Docker (Recomendado)
+
+O projeto possui orquestração completa via **Docker Compose**, subindo banco PostgreSQL 15, backend Spring Boot e frontend React servido por Nginx com proxy reverso.
+
+### Subir todo o ambiente com um comando:
+
+```bash
+docker compose up --build -d
+```
+
+- **Frontend (Web)**: [http://localhost:5173](http://localhost:5173) ou [http://localhost](http://localhost)
+- **Backend (API)**: [http://localhost:8080/api](http://localhost:8080/api)
+- **PostgreSQL**: `localhost:5432` (database `sgfl_db`, user `postgres`, password `4040`)
+
+Para visualizar os logs:
+```bash
+docker compose logs -f backend
+```
+
+Para parar os serviços:
+```bash
+docker compose down
+```
+
+---
+
+## Execução Local (sem Docker)
+
+### 1. Rodar o backend
 
 ```bash
 mvn spring-boot:run
 ```
 A API sobe em `http://localhost:8080`.
 
-### 3. Rodar o frontend
+### 2. Rodar o frontend
 
 ```bash
 cd sgfl-frontend
@@ -117,7 +152,7 @@ npm run dev
 ```
 Interface em `http://localhost:5173`.
 
-### 4. Rodar os testes
+### 3. Rodar os testes
 
 ```bash
 mvn test
@@ -128,13 +163,52 @@ Os testes usam banco H2 em memória — não tocam no seu Postgres local. Cobrem
 - **Repositório**: paginação e ordenação estável da listagem de entregas (`EntregaRepositoryTest`)
 - **Controller**: validação de entrada, exclusão, erros (`EntregaControllerTest`)
 - **Integração**: login real + acesso a rota protegida de ponta a ponta (`AutenticacaoIntegrationTest`)
-  A cada `push`, o GitHub Actions roda essa suíte automaticamente (veja `.github/workflows/ci.yml`).
+- **Migração Flyway**: validação do schema SQL e histórico de migrações (`FlywayMigrationTest`)
+- **Rate Limiting**: validação de controle de vazão e resposta 429 (`RateLimitingFilterTest`)
+
+---
+
+## Recursos Implementados
+
+### 1. Migrações Versionadas (Flyway)
+- Em substituição ao arriscado `hibernate.ddl-auto=update`, o banco agora é gerenciado de forma determinística e versionada pelo **Flyway**.
+- O Hibernate atua em modo `validate` (`spring.jpa.hibernate.ddl-auto=validate`), garantindo que a aplicação só suba se o esquema do banco bater perfeitamente com os mapeamentos das entidades JPA.
+- Scripts localizados em `src/main/resources/db/migration/`:
+  - `V1__create_tables.sql`: cria tabelas (`usuarios`, `veiculo`, `caminhao`, `furgao`, `motorista`, `entrega`), índices e chaves estrangeiras.
+  - `V2__seed_initial_data.sql`: carga idempotente de motoristas e frotas de demonstração.
+
+### 2. Logging Estruturado (JSON / Correlation ID)
+- Em produção / Docker, os logs são gerados no formato **JSON estruturado** (`logstash-logback-encoder`), prontos para ingestão em Elasticsearch, Loki, CloudWatch ou Datadog.
+- Filtro `StructuredLoggingFilter` injeta automaticamente no **SLF4J MDC**:
+  - `requestId` (Correlation ID obtido via `X-Request-ID` ou gerado via UUID)
+  - `clientIp`, `httpMethod`, `uri`, `status`, `durationMs`
+- O `requestId` é devolvido no header HTTP `X-Request-ID` e incluído nas respostas de erro do `GlobalExceptionHandler`, simplificando o rastreamento ponta a ponta.
+- Em desenvolvimento local, mantém formato colorido legível no console.
+
+### 3. Rate Limiting (Bucket4j)
+- Proteção contra ataques de força bruta, abuso de recursos e DoS usando o algoritmo Token Bucket com **Bucket4j**.
+- Políticas configuráveis e diferenciadas:
+  - **Rotas de Autenticação (`/api/auth/**`)**: limite restritivo de 15 requisições/min por IP.
+  - **Demais Rotas da API (`/api/**`)**: limite de 120 requisições/min por IP.
+- Headers devolvidos em cada resposta:
+  - `X-Rate-Limit-Remaining`: tokens restantes na janela.
+  - `Retry-After`: tempo em segundos para tentar novamente caso exceda.
+- Resposta padronizada com HTTP `429 Too Many Requests`:
+```json
+{
+  "timestamp": "2026-09-28T...",
+  "status": 429,
+  "error": "Too Many Requests",
+  "message": "Limite de requisições excedido. Tente novamente em 27 segundo(s).",
+  "requestId": "9426f4fa-..."
+}
+```
 
 ---
 
 ## Roadmap
 
-- [ ] Containerização (Docker)
-- [ ] Logging estruturado
-- [ ] Rate limiting
-- [ ] Migrações versionadas de banco (Flyway) no lugar de `ddl-auto=update`
+- [x] Containerização (Docker & Docker Compose)
+- [x] Logging estruturado (Logstash JSON + Correlation ID)
+- [x] Rate limiting (Bucket4j por IP)
+- [x] Migrações versionadas de banco (Flyway) no lugar de `ddl-auto=update`

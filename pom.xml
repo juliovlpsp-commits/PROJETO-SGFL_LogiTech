@@ -68,6 +68,26 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Migrações de Banco de Dados com Flyway -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+
+        <!-- Logging Estruturado em JSON (Logstash Logback Encoder) -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>7.4</version>
+        </dependency>
+
+        <!-- Rate Limiting com Bucket4j -->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j-core</artifactId>
+            <version>8.10.1</version>
+        </dependency>
+
         <!-- ===== Testes ===== -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

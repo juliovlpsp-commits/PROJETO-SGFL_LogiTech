@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true">
+
+    <springProperty scope="context" name="appName" source="spring.application.name" defaultValue="sgfl-backend"/>
+    <springProperty scope="context" name="loggingFormat" source="logging.format" defaultValue="${LOGGING_FORMAT:-standard}"/>
+
+    <!-- Appender para Console em formato legível (Desenvolvimento / Padrão) -->
+    <appender name="CONSOLE_STANDARD" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) [%15.15t] %cyan(%-40.40logger{39}) [%X{requestId:-none}] : %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- Appender para Console em formato JSON estruturado (Produção / Docker / Cloud) -->
+    <appender name="CONSOLE_JSON" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdcKeyName>requestId</includeMdcKeyName>
+            <includeMdcKeyName>clientIp</includeMdcKeyName>
+            <includeMdcKeyName>httpMethod</includeMdcKeyName>
+            <includeMdcKeyName>uri</includeMdcKeyName>
+            <includeMdcKeyName>status</includeMdcKeyName>
+            <includeMdcKeyName>durationMs</includeMdcKeyName>
+            <includeMdcKeyName>user</includeMdcKeyName>
+            <customFields>{"application":"${appName}"}</customFields>
+            <timestampPattern>yyyy-MM-dd'T'HH:mm:ss.SSSZZ</timestampPattern>
+        </encoder>
+    </appender>
+
+    <!-- Perfil de Produção ou quando explicitamente solicitado formato JSON -->
+    <springProfile name="prod | json">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE_JSON"/>
+        </root>
+    </springProfile>
+
+    <!-- Perfil de Desenvolvimento / Padrão -->
+    <springProfile name="!prod &amp; !json">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE_STANDARD"/>
+        </root>
+    </springProfile>
+
+</configuration>

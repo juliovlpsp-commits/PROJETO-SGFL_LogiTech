@@ -3,12 +3,16 @@ package com.logitech.sgfl.config;
 import com.logitech.sgfl.enums.Perfil;
 import com.logitech.sgfl.me.Usuario;
 import com.logitech.sgfl.repository.UsuarioRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
+
+    private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
 
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
@@ -30,9 +34,9 @@ public class DataInitializer implements CommandLineRunner {
             admin.setPerfil(Perfil.ROLE_ADMIN);
 
             usuarioRepository.save(admin);
-            System.out.println("UTILIZADOR ADMIN COM E-MAIL REGISTRADO.");
+            log.info("Utilizador administrador inicial verificado/registrado com sucesso (admin@gmail.com).");
         } catch (Exception e) {
-            System.err.println("Erro ao inicializar: " + e.getMessage());
+            log.error("Erro ao inicializar dados padrão: {}", e.getMessage(), e);
         }
     }
 }

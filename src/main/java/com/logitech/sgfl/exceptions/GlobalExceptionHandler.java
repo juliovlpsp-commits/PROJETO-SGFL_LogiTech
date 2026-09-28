@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -26,6 +27,10 @@ public class GlobalExceptionHandler {
         body.put("status", status.value());
         body.put("error", error);
         body.put("message", message);
+        String reqId = MDC.get("requestId");
+        if (reqId != null) {
+            body.put("requestId", reqId);
+        }
         return body;
     }
 

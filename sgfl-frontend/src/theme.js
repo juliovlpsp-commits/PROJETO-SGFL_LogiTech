@@ -9,6 +9,7 @@ export const lightTheme = {
     inkSoft: '#6B655C',
     accent: '#C1602F',
     accentInk: '#FFF9F2',
+    danger: '#B34632',
     statuses: {
         PENDENTE: { bg: '#F6E4DD', ink: '#8A3220', dot: '#B34632' },
         EM_TRANSITO: { bg: '#F5EBD6', ink: '#8A6A1F', dot: '#B08628' },
@@ -17,18 +18,19 @@ export const lightTheme = {
 };
 
 export const darkTheme = {
-    bg: '#242220',
-    surface: '#2C2A26',
-    surfaceAlt: '#332F2A',
-    border: '#433E37',
-    borderStrong: '#4D473E',
-    ink: '#EDE6D9',
-    inkSoft: '#A89F8E',
+    bg: '#262624',
+    surface: '#2D2C2A',
+    surfaceAlt: '#333230',
+    border: '#3E3D39',
+    borderStrong: '#4A4842',
+    ink: '#F5F4EF',
+    inkSoft: '#A8A29E',
     accent: '#D97757',
     accentInk: '#251A12',
+    danger: '#E2A793',
     statuses: {
-        PENDENTE: { bg: '#3A241F', ink: '#E2A793', dot: '#C96A4E' },
-        EM_TRANSITO: { bg: '#362D1E', ink: '#D9B36B', dot: '#D9B36B' },
-        ENTREGUE: { bg: '#233425', ink: '#8FBF95', dot: '#6FA377' }
+        PENDENTE: { bg: '#3A2A25', ink: '#E2A793', dot: '#C96A4E' },
+        EM_TRANSITO: { bg: '#362E20', ink: '#D9B36B', dot: '#D9B36B' },
+        ENTREGUE: { bg: '#25322A', ink: '#8FBF95', dot: '#6FA377' }
     }
 };

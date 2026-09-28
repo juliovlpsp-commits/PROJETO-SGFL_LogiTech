@@ -4,10 +4,15 @@ import com.logitech.sgfl.enums.StatusEntrega;
 import jakarta.persistence.*;
 
 @Entity
+@Table(indexes = {
+        @Index(name = "idx_entrega_status", columnList = "status")
+})
 public class Entrega {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    private String descricao;
     private String enderecoOrigem;
     private String enderecoDestino;
     private double pesoCargaKg;
@@ -31,6 +36,8 @@ public class Entrega {
     }
 
     public Long getId() { return id; }
+    public String getDescricao() { return descricao; }
+    public void setDescricao(String descricao) { this.descricao = descricao; }
     public String getEnderecoOrigem() { return enderecoOrigem; }
     public void setEnderecoOrigem(String enderecoOrigem) { this.enderecoOrigem = enderecoOrigem; }
     public String getEnderecoDestino() { return enderecoDestino; }

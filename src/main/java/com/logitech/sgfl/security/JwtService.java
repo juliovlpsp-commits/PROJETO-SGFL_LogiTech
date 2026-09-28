@@ -3,6 +3,7 @@ package com.logitech.sgfl.security;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -16,12 +17,16 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
-    // Chave secreta de no mínimo 256 bits para assinatura HMAC-SHA
-    private static final String SECRET_KEY = "SgflLogiTechChaveSecretaMuitoSeguraParaAssinaturaDoTokenJWT123456";
-    private static final long EXPIRATION_TIME = 86400000; // 24 horas em milissegundos
+    // Nunca hardcode segredo em codigo-fonte: vem de variavel de ambiente (JWT_SECRET),
+    // com um valor padrao apenas para nao quebrar o ambiente de desenvolvimento local.
+    @Value("${jwt.secret}")
+    private String secretKey;
+
+    @Value("${jwt.expiration-ms}")
+    private long expirationMs;
 
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8));
+        return Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
     }
 
     public String extractUsername(String token) {
@@ -42,7 +47,7 @@ public class JwtService {
                 .setClaims(extraClaims)
                 .setSubject(userDetails.getUsername())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
+                .setExpiration(new Date(System.currentTimeMillis() + expirationMs))
                 .signWith(getSigningKey())
                 .compact();
     }

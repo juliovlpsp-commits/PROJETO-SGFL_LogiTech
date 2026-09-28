@@ -85,6 +85,14 @@
             <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- O TestRestTemplate usa por padrao o HttpURLConnection do JDK, que tem um bug
+             conhecido ao receber 401 em requisicoes POST (HttpRetryException em streaming
+             mode). O Apache HttpClient nao sofre desse problema. -->
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

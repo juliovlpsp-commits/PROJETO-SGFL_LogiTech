@@ -2,6 +2,7 @@ package com.logitech.sgfl.exceptions;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -64,6 +65,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleAuthentication(AuthenticationException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(baseBody(HttpStatus.UNAUTHORIZED, "Não autorizado", "Credenciais inválidas."));
+    }
+
+    // JSON malformado ou com um valor que não existe (ex.: um status fora do enum,
+    // um número no lugar de texto). Precisa de handler próprio aqui: sem ele, cairia
+    // no catch-all de Exception.class abaixo e viraria 500 por engano, quando na
+    // verdade é sempre um erro de requisição do cliente (400).
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleJsonMalformado(HttpMessageNotReadableException ex) {
+        return ResponseEntity.badRequest().body(baseBody(HttpStatus.BAD_REQUEST, "Requisição inválida",
+                "O corpo da requisição está mal formado ou contém um valor inválido."));
     }
 
     // Rede de segurança final: qualquer coisa não prevista vira 500 genérico.

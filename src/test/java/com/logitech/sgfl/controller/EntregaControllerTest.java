@@ -16,6 +16,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
@@ -52,7 +53,9 @@ class EntregaControllerTest {
     @Test
     void devePermitirCriarEntregaComDadosValidos() throws Exception {
         Entrega salva = new Entrega();
-        salva.setId(1L);
+        // Entrega nao tem setId() publico de proposito (o id e gerado pelo banco),
+        // entao usamos reflexao so aqui no teste para simular o retorno do save().
+        ReflectionTestUtils.setField(salva, "id", 1L);
         salva.setDescricao("Encomenda #1092");
         salva.setEnderecoDestino("Av. Central, 500");
         salva.setStatus(StatusEntrega.PENDENTE);
@@ -103,7 +106,7 @@ class EntregaControllerTest {
     @Test
     void deveListarEntregasPaginadas() throws Exception {
         Entrega entrega = new Entrega();
-        entrega.setId(1L);
+        ReflectionTestUtils.setField(entrega, "id", 1L);
         Page<Entrega> pagina = new PageImpl<>(List.of(entrega), PageRequest.of(0, 10), 1);
         when(entregaRepository.findAll(any(org.springframework.data.domain.Pageable.class))).thenReturn(pagina);
 

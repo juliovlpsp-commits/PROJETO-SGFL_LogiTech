@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.*;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -40,7 +41,7 @@ class AutenticacaoIntegrationTest {
     private static final String SENHA = "senha123";
 
     @BeforeEach
-    void criarUsuarioDeTeste() {
+    void configurarAmbiente() {
         usuarioRepository.deleteAll();
         Usuario usuario = new Usuario();
         usuario.setUsername("teste");
@@ -48,6 +49,11 @@ class AutenticacaoIntegrationTest {
         usuario.setPassword(passwordEncoder.encode(SENHA));
         usuario.setPerfil(Perfil.ROLE_ADMIN);
         usuarioRepository.save(usuario);
+
+        // O HttpURLConnection padrao do JDK tem um bug conhecido ao receber 401 em
+        // requisicoes POST (HttpRetryException em streaming mode). Trocamos pelo
+        // Apache HttpClient, que nao sofre desse problema.
+        restTemplate.getRestTemplate().setRequestFactory(new HttpComponentsClientHttpRequestFactory());
     }
 
     @Test

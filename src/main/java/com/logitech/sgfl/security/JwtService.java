@@ -1,6 +1,7 @@
 package com.logitech.sgfl.security;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -53,8 +54,17 @@ public class JwtService {
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
-        final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
+        // Um token expirado nao deveria "explodir" uma excecao pra quem so quer
+        // saber se ele e valido — a resposta correta pra essa pergunta e, nesse
+        // caso, simplesmente "nao". O parser da biblioteca JWT lanca ExpiredJwtException
+        // ao processar um token vencido; tratamos isso aqui dentro para que o
+        // metodo seja seguro de usar sozinho, sem depender de quem o chama.
+        try {
+            final String username = extractUsername(token);
+            return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+        } catch (ExpiredJwtException e) {
+            return false;
+        }
     }
 
     private boolean isTokenExpired(String token) {

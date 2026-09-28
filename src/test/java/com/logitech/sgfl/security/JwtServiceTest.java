@@ -56,12 +56,15 @@ class JwtServiceTest {
     }
 
     @Test
-    void naoDeveValidarTokenExpirado() throws InterruptedException {
-        ReflectionTestUtils.setField(jwtService, "expirationMs", 1L);
+    void naoDeveValidarTokenExpirado() {
+        // Gera o token já expirado (data de expiração no passado), em vez de usar
+        // uma expiração de poucos milissegundos + sleep: o JWT só guarda a data de
+        // expiração com precisão de SEGUNDOS, então um teste baseado em timing de
+        // milissegundos é instável (pode passar ou falhar dependendo da velocidade
+        // da máquina que roda o teste).
+        ReflectionTestUtils.setField(jwtService, "expirationMs", -5000L);
         UserDetails usuario = new User("admin@gmail.com", "hashDaSenha", Collections.emptyList());
         String token = jwtService.generateToken(usuario);
-
-        Thread.sleep(15);
 
         assertThat(jwtService.isTokenValid(token, usuario)).isFalse();
     }

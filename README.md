@@ -139,7 +139,12 @@ docker compose down
 ### 1. Rodar o backend
 
 ```bash
+# Com Maven global:
 mvn spring-boot:run
+
+# Ou com o Maven Wrapper (incluso no projeto, não exige Maven instalado):
+./mvnw spring-boot:run     # Linux/macOS
+.\mvnw spring-boot:run     # Windows
 ```
 A API sobe em `http://localhost:8080`.
 
@@ -156,6 +161,8 @@ Interface em `http://localhost:5173`.
 
 ```bash
 mvn test
+# ou:
+.\mvnw test
 ```
 
 Os testes usam banco H2 em memória — não tocam no seu Postgres local. Cobrem:

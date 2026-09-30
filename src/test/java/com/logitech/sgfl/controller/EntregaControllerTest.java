@@ -399,4 +399,30 @@ class EntregaControllerTest {
                 StatusEntrega.CANCELADA
         );
     }
+
+    @Test
+    void deveRecusarExclusaoDeEntregaEmTransito()
+            throws Exception {
+
+        when(
+                entregaRepository.existsById(1L)
+        ).thenReturn(true);
+
+        when(
+                entregaRepository.existsByIdAndStatus(
+                        1L,
+                        StatusEntrega.EM_TRANSITO
+                )
+        ).thenReturn(true);
+
+        mockMvc.perform(
+                        delete("/api/entregas/1")
+                )
+                .andExpect(status().isBadRequest());
+
+        verify(
+                entregaRepository,
+                never()
+        ).deleteById(anyLong());
+    }
 }

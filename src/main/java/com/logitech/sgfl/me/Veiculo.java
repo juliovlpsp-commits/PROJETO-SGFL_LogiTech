@@ -3,6 +3,7 @@ package com.logitech.sgfl.me;
 import jakarta.persistence.*;
 
 @Entity
+@Table(name = "veiculo", uniqueConstraints = @UniqueConstraint(name = "uk_veiculo_placa", columnNames = "placa"))
 @Inheritance(strategy = InheritanceType.JOINED)
 public abstract class Veiculo {
     @Id

@@ -77,15 +77,12 @@ public class StructuredLoggingFilter extends OncePerRequestFilter {
         return UUID.randomUUID().toString();
     }
 
+    /**
+     * Mesmo critério do RateLimitingFilter: só o endereço remoto da conexão. Atrás de
+     * proxy confiável, o Tomcat (forward-headers-strategy=native) já o substitui pelo IP
+     * real do cliente. Ler X-Forwarded-For aqui permitiria forjar o IP nos logs.
+     */
     private String resolveClientIp(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (StringUtils.hasText(xForwardedFor)) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (StringUtils.hasText(xRealIp)) {
-            return xRealIp.trim();
-        }
         return request.getRemoteAddr();
     }
 }

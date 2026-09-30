@@ -20,7 +20,8 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Rodar testes automatizados (Maven + H2)
+      # O runner do GitHub já tem Docker, necessário para o FlywayMigrationTest (Testcontainers).
+      - name: Rodar testes automatizados (Maven + H2 + Testcontainers/PostgreSQL)
         run: mvn -B test
 
       - name: Publicar relatório de testes
@@ -29,3 +30,28 @@ jobs:
         with:
           name: relatorio-testes
           path: target/surefire-reports/
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sgfl-frontend
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: sgfl-frontend/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build de produção
+        run: npm run build

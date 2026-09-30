@@ -9,7 +9,9 @@ API REST em Spring Boot para gestão de entregas, veículos e motoristas, com au
 
 **Backend**
 - Java 17, Spring Boot 3.2.3 (Web, Data JPA, Security, Validation)
-- PostgreSQL (produção/desenvolvimento) e H2 em memória (testes)
+- PostgreSQL (produção/desenvolvimento), Flyway (migrações) e H2 em memória (testes gerais)
+- Testcontainers + Docker (apenas para o teste de migração, que sobe um PostgreSQL real)
+- Bucket4j (rate limiting) e logs estruturados em JSON
 - JWT (jjwt) para autenticação stateless
 - JUnit 5, Mockito, AssertJ, Spring Security Test
 - Maven
@@ -27,7 +29,9 @@ controller/   -> endpoints REST (HTTP <-> aplicação)
 service/      -> regras de negócio
 repository/   -> acesso a dados (Spring Data JPA)
 me/           -> entidades JPA
-dto/          -> contratos de entrada/saída da API (nunca a entidade JPA diretamente)
+dto/          -> contratos de entrada da API (DTOs com validação). Atenção: as respostas de
+             entregas, motoristas e veículos ainda serializam a entidade JPA diretamente
+             (nenhuma contém dados sensíveis; `Usuario` nunca é exposto)
 security/     -> JWT, filtro de autenticação, configuração do Spring Security
 exceptions/   -> exceções de domínio + tratamento de erro centralizado
 enums/        -> Perfil, StatusEntrega
@@ -39,7 +43,7 @@ O front-end nunca fala diretamente com o banco: toda operação passa pela API R
 
 ## Autenticação
 
-- `POST /api/auth/registrar` — cria um usuário
+- `POST /api/auth/registrar` — cadastro público; cria sempre um usuário `ROLE_OPERADOR` (senha de 8 a 72 caracteres). O `username` informado também é usado como e-mail de login.
 - `POST /api/auth/login` — autentica por **email** e senha, devolve um JWT
   Todas as demais rotas exigem o header:
 ```
@@ -47,6 +51,30 @@ Authorization: Bearer <token>
 ```
 
 O token expira em 24h por padrão (configurável via `JWT_EXPIRATION_MS`).
+
+Sem token, ou com token inválido/expirado, a API responde **401**. Autenticado, mas sem permissão para a operação, responde **403**.
+
+### Perfis e permissões
+
+| Operação | `ROLE_OPERADOR` | `ROLE_ADMIN` |
+|---|:---:|:---:|
+| Listar entregas, motoristas e veículos | sim | sim |
+| Criar, alocar, finalizar e cancelar entregas | sim | sim |
+| Cadastrar/editar motoristas e veículos (`POST`/`PUT`) | não | sim |
+| Qualquer `DELETE` | não | sim |
+
+### Primeiro administrador
+
+Não existe mais nenhum usuário com credencial fixa no código. Para criar o primeiro administrador, defina as variáveis abaixo **antes de subir a aplicação** (o `BootstrapAdminInitializer` só cria o usuário se ele ainda não existir e **nunca altera a senha de um usuário existente**):
+
+```
+BOOTSTRAP_ADMIN_ENABLED=true
+BOOTSTRAP_ADMIN_EMAIL=admin@suaempresa.com
+BOOTSTRAP_ADMIN_USERNAME=admin
+BOOTSTRAP_ADMIN_PASSWORD=uma-senha-forte-com-8-ou-mais-caracteres
+```
+
+Depois do primeiro acesso, pode voltar `BOOTSTRAP_ADMIN_ENABLED` para `false`.
  
 ---
 
@@ -56,7 +84,10 @@ O token expira em 24h por padrão (configurável via `JWT_EXPIRATION_MS`).
 2. **CNH do motorista**:
    - Caminhão: exige CNH categoria `D` ou `E`.
    - Furgão: exige CNH categoria `B`, `C`, `D` ou `E`.
-3. **Status da entrega**: `PENDENTE` → `EM_TRANSITO` → `ENTREGUE` (também existe `CANCELADA` no enum).
+3. **Status da entrega**: `PENDENTE` → `EM_TRANSITO` → `ENTREGUE`; `PENDENTE` ou `EM_TRANSITO` → `CANCELADA`.
+4. **Um veículo e um motorista só podem estar em uma entrega `EM_TRANSITO` por vez.** Além da checagem no serviço, isso é garantido por índices únicos parciais no banco (migration V5), o que protege contra requisições simultâneas.
+5. **Não é possível excluir uma entrega `EM_TRANSITO`** (cancele ou finalize antes).
+6. **Placa e CPF são únicos.** O CPF precisa ter dígitos verificadores válidos.
 ### Endpoints principais
 
 | Método | Rota | Descrição |
@@ -89,14 +120,17 @@ Erros seguem sempre o mesmo formato:
 - Node.js 18+ (para o frontend)
 ### 1. Configurar variáveis de ambiente
 
-Nada de senha ou segredo direto no `application.properties` — configure via variáveis de ambiente (todas têm um valor padrão de desenvolvimento, então o projeto roda mesmo sem configurar nada, mas **não use os valores padrão em produção**):
+Nada de senha ou segredo direto no `application.properties` — configure via variáveis de ambiente (as que não têm padrão são obrigatórias: a aplicação não sobe sem `DB_PASSWORD` e `JWT_SECRET`):
 
 | Variável | Descrição | Padrão (dev) |
 |---|---|---|
 | `DB_URL` | URL JDBC do Postgres | `jdbc:postgresql://localhost:5432/sgfl_db` |
 | `DB_USERNAME` | Usuário do banco | `postgres` |
-| `DB_PASSWORD` | Senha do banco | `4040` |
-| `JWT_SECRET` | Chave de assinatura do token | valor de desenvolvimento embutido |
+| `DB_PASSWORD` | Senha do banco | **obrigatória** (sem padrão) |
+| `JWT_SECRET` | Chave de assinatura do token (mínimo 32 caracteres) | **obrigatória** (sem padrão) |
+| `BOOTSTRAP_ADMIN_ENABLED` / `_EMAIL` / `_USERNAME` / `_PASSWORD` | Criação do primeiro administrador (veja acima) | desligado |
+| `CORS_ALLOWED_ORIGINS` | Origens do front-end permitidas, separadas por vírgula | `http://localhost:5173,http://localhost:3000` |
+| `FORWARD_HEADERS_STRATEGY` | `native` atrás de proxy (nginx), `none` se exposta diretamente | `native` |
 | `JWT_EXPIRATION_MS` | Validade do token (ms) | `86400000` (24h) |
 | `FLYWAY_ENABLED` | Ativa execução de migrações automáticas | `true` |
 | `DDL_AUTO` | Estratégia de DDL do Hibernate | `validate` |
@@ -110,7 +144,19 @@ No IntelliJ: **Run/Debug Configurations → Environment Variables**.
 
 ## Execução com Docker (Recomendado)
 
-O projeto possui orquestração completa via **Docker Compose**, subindo banco PostgreSQL 15, backend Spring Boot e frontend React servido por Nginx com proxy reverso.
+O projeto possui orquestração completa via **Docker Compose**, subindo banco PostgreSQL 16, backend Spring Boot e frontend React servido por Nginx com proxy reverso.
+
+### Antes de subir: crie o arquivo `.env`
+
+Na raiz do projeto (ele já está no `.gitignore`; nunca o versione):
+
+```
+POSTGRES_PASSWORD=troque-esta-senha
+JWT_SECRET=troque-por-uma-chave-aleatoria-com-mais-de-32-caracteres
+BOOTSTRAP_ADMIN_ENABLED=true
+BOOTSTRAP_ADMIN_EMAIL=admin@suaempresa.com
+BOOTSTRAP_ADMIN_PASSWORD=uma-senha-forte
+```
 
 ### Subir todo o ambiente com um comando:
 
@@ -120,7 +166,7 @@ docker compose up --build -d
 
 - **Frontend (Web)**: [http://localhost:5173](http://localhost:5173) ou [http://localhost](http://localhost)
 - **Backend (API)**: [http://localhost:8080/api](http://localhost:8080/api)
-- **PostgreSQL**: `localhost:5432` (database `sgfl_db`, user `postgres`, password `4040`)
+- **PostgreSQL**: `localhost:5432` (database `sgfl_db`, user `postgres`, senha definida por você em `POSTGRES_PASSWORD`)
 
 Para visualizar os logs:
 ```bash
@@ -165,12 +211,13 @@ mvn test
 .\mvnw test
 ```
 
-Os testes usam banco H2 em memória — não tocam no seu Postgres local. Cobrem:
+Os testes gerais usam banco H2 em memória — não tocam no seu Postgres local. **O `FlywayMigrationTest` exige o Docker rodando** (Docker Desktop aberto), pois sobe um PostgreSQL real via Testcontainers; sem Docker ele falha com "Could not find a valid Docker environment". Cobrem:
 - **Unitário**: geração/validação de JWT (`JwtServiceTest`)
 - **Repositório**: paginação e ordenação estável da listagem de entregas (`EntregaRepositoryTest`)
 - **Controller**: validação de entrada, exclusão, erros (`EntregaControllerTest`)
-- **Integração**: login real + acesso a rota protegida de ponta a ponta (`AutenticacaoIntegrationTest`)
-- **Migração Flyway**: validação do schema SQL e histórico de migrações (`FlywayMigrationTest`)
+- **Integração**: login, cadastro, 401/403 e permissões por perfil de ponta a ponta (`AutenticacaoIntegrationTest`)
+- **Segurança/negócio**: bootstrap do admin (`BootstrapAdminInitializerTest`), CPF (`MotoristaControllerCpfTest`), tradução de erros de constraint (`GlobalExceptionHandlerTest`)
+- **Migração Flyway**: aplica todas as migrations em um PostgreSQL real e confere unicidade, índices e ausência de dados duplicados (`FlywayMigrationTest`)
 - **Rate Limiting**: validação de controle de vazão e resposta 429 (`RateLimitingFilterTest`)
 
 ---
@@ -182,7 +229,11 @@ Os testes usam banco H2 em memória — não tocam no seu Postgres local. Cobrem
 - O Hibernate atua em modo `validate` (`spring.jpa.hibernate.ddl-auto=validate`), garantindo que a aplicação só suba se o esquema do banco bater perfeitamente com os mapeamentos das entidades JPA.
 - Scripts localizados em `src/main/resources/db/migration/`:
   - `V1__create_tables.sql`: cria tabelas (`usuarios`, `veiculo`, `caminhao`, `furgao`, `motorista`, `entrega`), índices e chaves estrangeiras.
-  - `V2__seed_initial_data.sql`: carga idempotente de motoristas e frotas de demonstração.
+  - `V2__seed_initial_data.sql`: carga idempotente de motoristas de demonstração.
+  - `V3__corrigir_nomes_colunas.sql`: ajusta nomes de colunas para o que o Hibernate espera.
+  - `V4__carregar_dados_locais.sql`: dump de dados do ambiente local do desenvolvedor (histórico; não edite, o Flyway valida o checksum).
+  - `V5__integridade_dados_e_concorrencia.sql`: normaliza/remove duplicatas deixadas pela V4, cria constraints únicas de placa e CPF, índices únicos parciais contra dupla alocação e remove o admin com senha conhecida.
+  - **Regra daqui para frente:** nunca use migrations para dados de demonstração ou dumps. Migrations são só estrutura e dados de referência.
 
 ### 2. Logging Estruturado (JSON / Correlation ID)
 - Em produção / Docker, os logs são gerados no formato **JSON estruturado** (`logstash-logback-encoder`), prontos para ingestão em Elasticsearch, Loki, CloudWatch ou Datadog.

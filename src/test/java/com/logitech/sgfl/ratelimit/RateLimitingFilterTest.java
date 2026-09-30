@@ -86,4 +86,43 @@ class RateLimitingFilterTest {
 
         verify(filterChain, times(1)).doFilter(request, response);
     }
+
+    @Test
+    void naoDevePermitirBurlarOLimiteForjandoXForwardedFor() throws ServletException, IOException {
+        String clientIp = "192.168.1.250";
+
+        for (int i = 0; i < 3; i++) {
+            MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/auth/login");
+            req.setRemoteAddr(clientIp);
+            req.addHeader("X-Forwarded-For", "10.0.0." + i);
+            req.addHeader("X-Real-IP", "10.1.0." + i);
+            rateLimitingFilter.doFilter(req, new MockHttpServletResponse(), filterChain);
+        }
+
+        MockHttpServletRequest blockedReq = new MockHttpServletRequest("POST", "/api/auth/login");
+        blockedReq.setRemoteAddr(clientIp);
+        blockedReq.addHeader("X-Forwarded-For", "10.0.0.99");
+        MockHttpServletResponse blockedRes = new MockHttpServletResponse();
+
+        rateLimitingFilter.doFilter(blockedReq, blockedRes, filterChain);
+
+        assertThat(blockedRes.getStatus()).isEqualTo(429);
+    }
+
+    @Test
+    void clientesDiferentesDevemTerLimitesIndependentes() throws ServletException, IOException {
+        for (int i = 0; i < 3; i++) {
+            MockHttpServletRequest req = new MockHttpServletRequest("POST", "/api/auth/login");
+            req.setRemoteAddr("172.16.0.1");
+            rateLimitingFilter.doFilter(req, new MockHttpServletResponse(), filterChain);
+        }
+
+        MockHttpServletRequest outro = new MockHttpServletRequest("POST", "/api/auth/login");
+        outro.setRemoteAddr("172.16.0.2");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+
+        rateLimitingFilter.doFilter(outro, res, filterChain);
+
+        assertThat(res.getStatus()).isEqualTo(200);
+    }
 }

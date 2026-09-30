@@ -85,13 +85,32 @@ public class MotoristaController {
         return ResponseEntity.noContent().build();
     }
 
-    // O formato do CPF (11 dígitos após remover pontuação) é uma regra de negócio
-    // específica, não coberta por uma anotação simples de Bean Validation — por
-    // isso continua como validação manual, mesmo com o DTO cuidando do resto.
+    // Além do tamanho, valida os dois dígitos verificadores e rejeita sequências repetidas
+    // (000.000.000-00, 111.111.111-11, ...), que passam na conta mas não são CPFs reais.
     private void validarCpfNormalizado(String cpf) {
         if (cpf.length() != 11) {
             throw new IllegalArgumentException("O CPF deve conter 11 dígitos.");
         }
+        if (!cpfPossuiDigitosVerificadoresValidos(cpf)) {
+            throw new IllegalArgumentException("CPF inválido.");
+        }
+    }
+
+    static boolean cpfPossuiDigitosVerificadoresValidos(String cpf) {
+        if (cpf == null || cpf.length() != 11 || cpf.chars().distinct().count() == 1) {
+            return false;
+        }
+        return digitoVerificador(cpf, 9) == Character.getNumericValue(cpf.charAt(9))
+                && digitoVerificador(cpf, 10) == Character.getNumericValue(cpf.charAt(10));
+    }
+
+    private static int digitoVerificador(String cpf, int quantidadeDigitos) {
+        int soma = 0;
+        for (int i = 0; i < quantidadeDigitos; i++) {
+            soma += Character.getNumericValue(cpf.charAt(i)) * (quantidadeDigitos + 1 - i);
+        }
+        int resto = (soma * 10) % 11;
+        return resto == 10 ? 0 : resto;
     }
 
     private String normalizarCpf(String cpf) {

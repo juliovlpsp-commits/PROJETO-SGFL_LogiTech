@@ -17,4 +17,22 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+// Token expirado/invalido: limpa a sessao e avisa o App para voltar ao login.
+// Ignora as rotas de autenticacao, onde 401 significa apenas "credenciais erradas".
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        const status = error.response?.status;
+        const url = error.config?.url || '';
+        const temToken = !!localStorage.getItem('token');
+
+        if (status === 401 && temToken && !url.includes('/auth/')) {
+            localStorage.removeItem('token');
+            window.dispatchEvent(new Event('sgfl:unauthorized'));
+        }
+
+        return Promise.reject(error);
+    }
+);
+
 export default api;

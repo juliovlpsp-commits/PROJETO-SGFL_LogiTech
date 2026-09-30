@@ -138,17 +138,8 @@ public class SistemaLogistica implements ServicoGerenciamento {
             );
         }
 
-        boolean isCaminhao =
-                veiculo instanceof Caminhao ||
-                        veiculo.getClass()
-                                .getSimpleName()
-                                .contains("Caminhao");
-
-        boolean isFurgao =
-                veiculo instanceof Furgao ||
-                        veiculo.getClass()
-                                .getSimpleName()
-                                .contains("Furgao");
+        boolean isCaminhao = veiculo instanceof Caminhao;
+        boolean isFurgao = veiculo instanceof Furgao;
 
         if (isCaminhao &&
                 !cnh.podeDirigirCaminhao()) {

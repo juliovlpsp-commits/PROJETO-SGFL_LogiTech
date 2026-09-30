@@ -17,7 +17,6 @@ import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -27,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Component
 @Order(-100) // Executa logo após o StructuredLoggingFilter
@@ -51,8 +51,23 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     @Value("${ratelimit.api.tokens-per-minute:120}")
     private long apiTokensPerMinute;
 
-    private final Map<String, Bucket> authBuckets = new ConcurrentHashMap<>();
-    private final Map<String, Bucket> apiBuckets = new ConcurrentHashMap<>();
+    /** Buckets sem uso por este tempo são descartados, para o mapa não crescer indefinidamente. */
+    private static final long IDLE_EVICTION_NANOS = TimeUnit.MINUTES.toNanos(10);
+    private static final long CLEANUP_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(1);
+
+    private final Map<String, BucketEntry> authBuckets = new ConcurrentHashMap<>();
+    private final Map<String, BucketEntry> apiBuckets = new ConcurrentHashMap<>();
+    private final AtomicLong lastCleanupNanos = new AtomicLong(System.nanoTime());
+
+    private static final class BucketEntry {
+        private final Bucket bucket;
+        private volatile long lastAccessNanos;
+
+        private BucketEntry(Bucket bucket) {
+            this.bucket = bucket;
+            this.lastAccessNanos = System.nanoTime();
+        }
+    }
 
     public RateLimitingFilter(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
@@ -73,14 +88,19 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             return;
         }
 
+        evictIdleBucketsIfNeeded();
+
         String clientIp = resolveClientIp(request);
-        Bucket bucket;
+        BucketEntry entry;
 
         if (path.startsWith("/api/auth/")) {
-            bucket = authBuckets.computeIfAbsent(clientIp, k -> createBucket(authCapacity, authTokensPerMinute));
+            entry = authBuckets.computeIfAbsent(clientIp, k -> new BucketEntry(createBucket(authCapacity, authTokensPerMinute)));
         } else {
-            bucket = apiBuckets.computeIfAbsent(clientIp, k -> createBucket(apiCapacity, apiTokensPerMinute));
+            entry = apiBuckets.computeIfAbsent(clientIp, k -> new BucketEntry(createBucket(apiCapacity, apiTokensPerMinute)));
         }
+
+        entry.lastAccessNanos = System.nanoTime();
+        Bucket bucket = entry.bucket;
 
         ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
 
@@ -122,15 +142,32 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         return Bucket.builder().addLimit(limit).build();
     }
 
+    /**
+     * Remove periodicamente (no máximo 1x por minuto) os buckets ociosos.
+     */
+    private void evictIdleBucketsIfNeeded() {
+        long now = System.nanoTime();
+        long last = lastCleanupNanos.get();
+
+        if (now - last < CLEANUP_INTERVAL_NANOS || !lastCleanupNanos.compareAndSet(last, now)) {
+            return;
+        }
+
+        authBuckets.values().removeIf(e -> now - e.lastAccessNanos > IDLE_EVICTION_NANOS);
+        apiBuckets.values().removeIf(e -> now - e.lastAccessNanos > IDLE_EVICTION_NANOS);
+    }
+
+    /**
+     * Usa SOMENTE o endereço remoto da conexão.
+     *
+     * Não lemos X-Forwarded-For / X-Real-IP diretamente aqui: esses cabeçalhos são
+     * controlados pelo cliente e permitiriam burlar o limite trocando o valor a cada
+     * requisição. Atrás de um proxy (nginx/Docker), a aplicação usa
+     * server.forward-headers-strategy=native: o Tomcat só aceita X-Forwarded-For quando
+     * a requisição vem de um proxy confiável (faixas de IP privadas) e então já
+     * entrega o IP real do cliente em request.getRemoteAddr().
+     */
     private String resolveClientIp(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (StringUtils.hasText(xForwardedFor)) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (StringUtils.hasText(xRealIp)) {
-            return xRealIp.trim();
-        }
         return request.getRemoteAddr();
     }
 }

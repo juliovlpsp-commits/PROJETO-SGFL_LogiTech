@@ -4,6 +4,7 @@ import com.logitech.sgfl.enums.TipoCNH;
 import jakarta.persistence.*;
 
 @Entity
+@Table(name = "motorista", uniqueConstraints = @UniqueConstraint(name = "uk_motorista_cpf", columnNames = "cpf"))
 public class Motorista {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

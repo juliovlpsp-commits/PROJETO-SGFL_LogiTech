@@ -2,6 +2,7 @@ package com.logitech.sgfl.controller;
 
 import com.logitech.sgfl.dto.LoginRequest;
 import com.logitech.sgfl.dto.LoginResponse;
+import com.logitech.sgfl.dto.RegistroRequest;
 import com.logitech.sgfl.enums.Perfil;
 import com.logitech.sgfl.me.Usuario;
 import com.logitech.sgfl.repository.UsuarioRepository;
@@ -13,11 +14,11 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "*")
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
@@ -49,7 +50,7 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(
-            @RequestBody LoginRequest request
+            @Valid @RequestBody LoginRequest request
     ) {
 
         authenticationManager.authenticate(
@@ -80,28 +81,17 @@ public class AuthController {
      */
     @PostMapping("/registrar")
     public ResponseEntity<String> registrar(
-            @RequestBody LoginRequest request
+            @Valid @RequestBody RegistroRequest request
     ) {
 
-        if (request.getUsername() == null ||
-                request.getUsername().isBlank()) {
+        String username = request.getUsername().trim();
 
-            return ResponseEntity
-                    .badRequest()
-                    .body("Username é obrigatório.");
-        }
-
-        if (request.getPassword() == null ||
-                request.getPassword().isBlank()) {
-
-            return ResponseEntity
-                    .badRequest()
-                    .body("Senha é obrigatória.");
-        }
-
-        if (usuarioRepository
-                .findByUsername(request.getUsername())
-                .isPresent()) {
+        /*
+         * No fluxo atual, o username também é utilizado
+         * como e-mail (o login é feito por e-mail).
+         */
+        if (usuarioRepository.existsByUsername(username)
+                || usuarioRepository.existsByEmail(username)) {
 
             return ResponseEntity
                     .status(HttpStatus.CONFLICT)
@@ -109,32 +99,15 @@ public class AuthController {
         }
 
         Usuario usuario = new Usuario();
-
-        usuario.setUsername(
-                request.getUsername()
-        );
-
-        /*
-         * No fluxo atual, o username também é utilizado
-         * como e-mail quando o usuário é cadastrado.
-         */
-        usuario.setEmail(
-                request.getUsername()
-        );
-
-        usuario.setPassword(
-                passwordEncoder.encode(
-                        request.getPassword()
-                )
-        );
+        usuario.setUsername(username);
+        usuario.setEmail(username);
+        usuario.setPassword(passwordEncoder.encode(request.getPassword()));
 
         /*
          * IMPORTANTE:
          * o cliente não pode escolher ROLE_ADMIN.
          */
-        usuario.setPerfil(
-                Perfil.ROLE_OPERADOR
-        );
+        usuario.setPerfil(Perfil.ROLE_OPERADOR);
 
         usuarioRepository.save(usuario);
 

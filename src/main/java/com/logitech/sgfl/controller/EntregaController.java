@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/entregas")
-@CrossOrigin(origins = "http://localhost:5173")
 public class EntregaController {
 
     private static final int TAMANHO_PAGINA_PADRAO = 20;
@@ -151,6 +150,12 @@ public class EntregaController {
         if (!entregaRepository.existsById(id)) {
             throw new RecursoNaoEncontradoException(
                     "Entrega não encontrada: " + id
+            );
+        }
+
+        if (entregaRepository.existsByIdAndStatus(id, StatusEntrega.EM_TRANSITO)) {
+            throw new RegraNegocioException(
+                    "Não é possível excluir uma entrega EM_TRANSITO. Cancele ou finalize antes."
             );
         }
 

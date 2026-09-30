@@ -19,6 +19,13 @@ export default function App() {
         setToken(null);
     };
 
+    // Disparado pelo interceptor do api.js quando o backend responde 401 (token expirado).
+    useEffect(() => {
+        const aoExpirar = () => setToken(null);
+        window.addEventListener('sgfl:unauthorized', aoExpirar);
+        return () => window.removeEventListener('sgfl:unauthorized', aoExpirar);
+    }, []);
+
     return (
         <div>
             {!token ? (

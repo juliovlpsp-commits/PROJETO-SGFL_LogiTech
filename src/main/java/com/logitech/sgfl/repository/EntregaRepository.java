@@ -8,6 +8,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface EntregaRepository extends JpaRepository<Entrega, Long> {
 
+    boolean existsByIdAndStatus(Long id, StatusEntrega status);
+
     boolean existsByMotorista_Id(Long motoristaId);
 
     boolean existsByVeiculo_Id(Long veiculoId);

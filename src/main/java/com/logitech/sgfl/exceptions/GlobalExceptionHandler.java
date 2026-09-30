@@ -131,15 +131,61 @@ public class GlobalExceptionHandler {
             DataIntegrityViolationException ex
     ) {
 
+        String mensagem =
+                mensagemParaViolacaoConhecida(ex);
+
+        if (mensagem == null) {
+            mensagem =
+                    "O registro está relacionado a outros dados do sistema e não pode ser removido desta forma.";
+        }
+
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(
                         baseBody(
                                 HttpStatus.CONFLICT,
                                 "Operação não permitida",
-                                "O registro está relacionado a outros dados do sistema e não pode ser removido desta forma."
+                                mensagem
                         )
                 );
+    }
+
+    /**
+     * Traduz as constraints criadas na migration V5 para mensagens claras.
+     * É a rede de segurança para requisições concorrentes: a checagem no
+     * serviço pode passar nas duas ao mesmo tempo, mas o banco só aceita uma.
+     */
+    private String mensagemParaViolacaoConhecida(
+            DataIntegrityViolationException ex
+    ) {
+
+        String detalhe =
+                ex.getMostSpecificCause().getMessage();
+
+        if (detalhe == null) {
+            return null;
+        }
+
+        String texto =
+                detalhe.toLowerCase();
+
+        if (texto.contains("uq_entrega_veiculo_em_transito")) {
+            return "O veículo já está alocado em outra entrega EM_TRANSITO.";
+        }
+
+        if (texto.contains("uq_entrega_motorista_em_transito")) {
+            return "O motorista já está alocado em outra entrega EM_TRANSITO.";
+        }
+
+        if (texto.contains("uk_veiculo_placa")) {
+            return "Já existe um veículo cadastrado com esta placa.";
+        }
+
+        if (texto.contains("uk_motorista_cpf")) {
+            return "Já existe um motorista cadastrado com este CPF.";
+        }
+
+        return null;
     }
 
     @ExceptionHandler(

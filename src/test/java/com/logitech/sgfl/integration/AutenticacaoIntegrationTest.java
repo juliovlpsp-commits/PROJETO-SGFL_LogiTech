@@ -2,6 +2,7 @@ package com.logitech.sgfl.integration;
 
 import com.logitech.sgfl.dto.LoginRequest;
 import com.logitech.sgfl.dto.LoginResponse;
+import com.logitech.sgfl.dto.RegistroRequest;
 import com.logitech.sgfl.enums.Perfil;
 import com.logitech.sgfl.me.Usuario;
 import com.logitech.sgfl.repository.UsuarioRepository;
@@ -60,7 +61,117 @@ class AutenticacaoIntegrationTest {
     void deveRecusarAcessoARotaProtegidaSemToken() {
         ResponseEntity<String> resposta = restTemplate.getForEntity("/api/entregas", String.class);
 
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void deveRecusarTokenInvalidoComUnauthorized() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth("token.invalido.qualquer");
+
+        ResponseEntity<String> resposta =
+                restTemplate.exchange("/api/entregas", HttpMethod.GET, new HttpEntity<>(headers), String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void operadorNaoPodeExcluirEntrega() {
+        criarUsuario("operador@exemplo.com", SENHA, Perfil.ROLE_OPERADOR);
+        String token = fazerLogin("operador@exemplo.com", SENHA);
+
+        ResponseEntity<String> resposta = restTemplate.exchange(
+                "/api/entregas/999", HttpMethod.DELETE, new HttpEntity<>(comToken(token)), String.class);
+
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void operadorNaoPodeCadastrarMotorista() {
+        criarUsuario("operador@exemplo.com", SENHA, Perfil.ROLE_OPERADOR);
+        String token = fazerLogin("operador@exemplo.com", SENHA);
+
+        HttpHeaders headers = comToken(token);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        ResponseEntity<String> resposta = restTemplate.exchange(
+                "/api/motoristas", HttpMethod.POST,
+                new HttpEntity<>("{\"nome\":\"Fulano\",\"cpf\":\"52998224725\",\"tipoCNH\":\"B\"}", headers),
+                String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void operadorPodeListarEntregas() {
+        criarUsuario("operador@exemplo.com", SENHA, Perfil.ROLE_OPERADOR);
+        String token = fazerLogin("operador@exemplo.com", SENHA);
+
+        ResponseEntity<String> resposta = restTemplate.exchange(
+                "/api/entregas", HttpMethod.GET, new HttpEntity<>(comToken(token)), String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    void adminPassaPelaAutorizacaoDeExclusao() {
+        String token = fazerLogin(EMAIL, SENHA);
+
+        // A entrega 999 não existe: passar pela autorização e chegar no 404 prova que não houve 403.
+        ResponseEntity<String> resposta = restTemplate.exchange(
+                "/api/entregas/999", HttpMethod.DELETE, new HttpEntity<>(comToken(token)), String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void cadastroPublicoDeveCriarUsuarioComoOperador() {
+        ResponseEntity<String> resposta = restTemplate.postForEntity(
+                "/api/auth/registrar", new RegistroRequest("novo@exemplo.com", "senhaSegura1"), String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(usuarioRepository.findByEmail("novo@exemplo.com"))
+                .get()
+                .extracting(Usuario::getPerfil)
+                .isEqualTo(Perfil.ROLE_OPERADOR);
+    }
+
+    @Test
+    void cadastroPublicoDeveRecusarSenhaCurta() {
+        ResponseEntity<String> resposta = restTemplate.postForEntity(
+                "/api/auth/registrar", new RegistroRequest("novo@exemplo.com", "123"), String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(usuarioRepository.findByEmail("novo@exemplo.com")).isEmpty();
+    }
+
+    @Test
+    void loginSemCredenciaisDeveRetornar400() {
+        ResponseEntity<String> resposta = restTemplate.postForEntity(
+                "/api/auth/login", new LoginRequest("", ""), String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    private void criarUsuario(String email, String senha, Perfil perfil) {
+        Usuario usuario = new Usuario();
+        usuario.setUsername(email);
+        usuario.setEmail(email);
+        usuario.setPassword(passwordEncoder.encode(senha));
+        usuario.setPerfil(perfil);
+        usuarioRepository.save(usuario);
+    }
+
+    private String fazerLogin(String email, String senha) {
+        ResponseEntity<LoginResponse> resposta = restTemplate.postForEntity(
+                "/api/auth/login", new LoginRequest(email, senha), LoginResponse.class);
+        return resposta.getBody().getToken();
+    }
+
+    private HttpHeaders comToken(String token) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        return headers;
     }
 
     @Test

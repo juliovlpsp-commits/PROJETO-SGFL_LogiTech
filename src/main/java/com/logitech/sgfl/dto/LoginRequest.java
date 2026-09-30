@@ -1,7 +1,13 @@
 package com.logitech.sgfl.dto;
 
+import jakarta.validation.constraints.NotBlank;
+
 public class LoginRequest {
+
+    @NotBlank(message = "O username é obrigatório")
     private String username;
+
+    @NotBlank(message = "A senha é obrigatória")
     private String password;
 
     public LoginRequest() {}

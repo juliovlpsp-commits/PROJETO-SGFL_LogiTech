@@ -1,73 +1,102 @@
 version: '3.8'
 
 services:
+
   postgres:
     image: postgres:15-alpine
     container_name: sgfl-postgres
     restart: unless-stopped
+
     environment:
-      POSTGRES_DB: sgfl_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 4040
+      POSTGRES_DB: ${POSTGRES_DB:-sgfl_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
     ports:
       - "5432:5432"
+
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d sgfl_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-sgfl_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
+
     networks:
       - sgfl-network
+
 
   backend:
     build:
       context: .
       dockerfile: Dockerfile
+
     container_name: sgfl-backend
     restart: unless-stopped
+
     depends_on:
       postgres:
         condition: service_healthy
+
     environment:
-      DB_URL: jdbc:postgresql://postgres:5432/sgfl_db
-      DB_USERNAME: postgres
-      DB_PASSWORD: 4040
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-sgfl_db}
+      DB_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+
       SPRING_PROFILES_ACTIVE: prod
+
       FLYWAY_ENABLED: "true"
       DDL_AUTO: validate
-      JWT_SECRET: SgflLogiTechChaveSecretaMuitoSeguraParaAssinaturaDoTokenJWT123456
-      JWT_EXPIRATION_MS: 86400000
+
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
+
       RATE_LIMIT_ENABLED: "true"
-      RATE_LIMIT_AUTH_CAPACITY: 15
-      RATE_LIMIT_AUTH_TOKENS: 15
-      RATE_LIMIT_API_CAPACITY: 120
-      RATE_LIMIT_API_TOKENS: 120
+      RATE_LIMIT_AUTH_CAPACITY: ${RATE_LIMIT_AUTH_CAPACITY:-15}
+      RATE_LIMIT_AUTH_TOKENS: ${RATE_LIMIT_AUTH_TOKENS:-15}
+      RATE_LIMIT_API_CAPACITY: ${RATE_LIMIT_API_CAPACITY:-120}
+      RATE_LIMIT_API_TOKENS: ${RATE_LIMIT_API_TOKENS:-120}
+
+      BOOTSTRAP_ADMIN_ENABLED: ${BOOTSTRAP_ADMIN_ENABLED:-false}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+
     ports:
       - "8080:8080"
+
     networks:
       - sgfl-network
+
 
   frontend:
     build:
       context: ./sgfl-frontend
       dockerfile: Dockerfile
+
       args:
         VITE_API_URL: /api
+
     container_name: sgfl-frontend
     restart: unless-stopped
+
     depends_on:
       - backend
+
     ports:
       - "5173:80"
       - "80:80"
+
     networks:
       - sgfl-network
+
 
 volumes:
   postgres_data:
     driver: local
+
 
 networks:
   sgfl-network:

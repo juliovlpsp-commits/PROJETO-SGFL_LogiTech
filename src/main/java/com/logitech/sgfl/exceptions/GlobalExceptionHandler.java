@@ -3,6 +3,7 @@ package com.logitech.sgfl.exceptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -19,48 +20,81 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     private static final Logger log =
-            LoggerFactory.getLogger(GlobalExceptionHandler.class);
+            LoggerFactory.getLogger(
+                    GlobalExceptionHandler.class
+            );
 
     private Map<String, Object> baseBody(
             HttpStatus status,
             String error,
             String message
     ) {
-        Map<String, Object> body = new LinkedHashMap<>();
 
-        body.put("timestamp", LocalDateTime.now());
-        body.put("status", status.value());
-        body.put("error", error);
-        body.put("message", message);
+        Map<String, Object> body =
+                new LinkedHashMap<>();
 
-        String reqId = MDC.get("requestId");
+        body.put(
+                "timestamp",
+                LocalDateTime.now()
+        );
 
-        if (reqId != null) {
-            body.put("requestId", reqId);
+        body.put(
+                "status",
+                status.value()
+        );
+
+        body.put(
+                "error",
+                error
+        );
+
+        body.put(
+                "message",
+                message
+        );
+
+        String requestId =
+                MDC.get("requestId");
+
+        if (requestId != null) {
+            body.put(
+                    "requestId",
+                    requestId
+            );
         }
 
         return body;
     }
 
-    @ExceptionHandler(VeiculoIncompativelException.class)
-    public ResponseEntity<Map<String, Object>> handleVeiculoIncompativel(
+    @ExceptionHandler(
+            VeiculoIncompativelException.class
+    )
+    public ResponseEntity<Map<String, Object>>
+    handleVeiculoIncompativel(
             VeiculoIncompativelException ex
     ) {
-        return ResponseEntity.badRequest()
+
+        return ResponseEntity
+                .badRequest()
                 .body(
                         baseBody(
                                 HttpStatus.BAD_REQUEST,
-                                "Veículo Incompatível",
+                                "Veículo incompatível",
                                 ex.getMessage()
                         )
                 );
     }
 
-    @ExceptionHandler(RegraNegocioException.class)
-    public ResponseEntity<Map<String, Object>> handleRegraNegocio(
+    @ExceptionHandler(
+            RegraNegocioException.class
+    )
+    public ResponseEntity<Map<String, Object>>
+    handleRegraNegocio(
             RegraNegocioException ex
     ) {
-        return ResponseEntity.badRequest()
+
+        return ResponseEntity
+                .badRequest()
                 .body(
                         baseBody(
                                 HttpStatus.BAD_REQUEST,
@@ -70,10 +104,14 @@ public class GlobalExceptionHandler {
                 );
     }
 
-    @ExceptionHandler(RecursoNaoEncontradoException.class)
-    public ResponseEntity<Map<String, Object>> handleRecursoNaoEncontrado(
+    @ExceptionHandler(
+            RecursoNaoEncontradoException.class
+    )
+    public ResponseEntity<Map<String, Object>>
+    handleRecursoNaoEncontrado(
             RecursoNaoEncontradoException ex
     ) {
+
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
                 .body(
@@ -85,11 +123,35 @@ public class GlobalExceptionHandler {
                 );
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleIllegalArgument(
+    @ExceptionHandler(
+            DataIntegrityViolationException.class
+    )
+    public ResponseEntity<Map<String, Object>>
+    handleDataIntegrityViolation(
+            DataIntegrityViolationException ex
+    ) {
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(
+                        baseBody(
+                                HttpStatus.CONFLICT,
+                                "Operação não permitida",
+                                "O registro está relacionado a outros dados do sistema e não pode ser removido desta forma."
+                        )
+                );
+    }
+
+    @ExceptionHandler(
+            IllegalArgumentException.class
+    )
+    public ResponseEntity<Map<String, Object>>
+    handleIllegalArgument(
             IllegalArgumentException ex
     ) {
-        return ResponseEntity.badRequest()
+
+        return ResponseEntity
+                .badRequest()
                 .body(
                         baseBody(
                                 HttpStatus.BAD_REQUEST,
@@ -99,11 +161,16 @@ public class GlobalExceptionHandler {
                 );
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleValidation(
+    @ExceptionHandler(
+            MethodArgumentNotValidException.class
+    )
+    public ResponseEntity<Map<String, Object>>
+    handleValidation(
             MethodArgumentNotValidException ex
     ) {
-        Map<String, String> fieldErrors = new LinkedHashMap<>();
+
+        Map<String, String> fieldErrors =
+                new LinkedHashMap<>();
 
         ex.getBindingResult()
                 .getFieldErrors()
@@ -119,18 +186,27 @@ public class GlobalExceptionHandler {
                 baseBody(
                         HttpStatus.BAD_REQUEST,
                         "Dados inválidos",
-                        "Um ou mais campos são inválidos"
+                        "Um ou mais campos são inválidos."
                 );
 
-        body.put("campos", fieldErrors);
+        body.put(
+                "campos",
+                fieldErrors
+        );
 
-        return ResponseEntity.badRequest().body(body);
+        return ResponseEntity
+                .badRequest()
+                .body(body);
     }
 
-    @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<Map<String, Object>> handleAuthentication(
+    @ExceptionHandler(
+            AuthenticationException.class
+    )
+    public ResponseEntity<Map<String, Object>>
+    handleAuthentication(
             AuthenticationException ex
     ) {
+
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
                 .body(
@@ -142,11 +218,16 @@ public class GlobalExceptionHandler {
                 );
     }
 
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<Map<String, Object>> handleJsonMalformado(
+    @ExceptionHandler(
+            HttpMessageNotReadableException.class
+    )
+    public ResponseEntity<Map<String, Object>>
+    handleJsonMalformado(
             HttpMessageNotReadableException ex
     ) {
-        return ResponseEntity.badRequest()
+
+        return ResponseEntity
+                .badRequest()
                 .body(
                         baseBody(
                                 HttpStatus.BAD_REQUEST,
@@ -157,10 +238,15 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleUnexpected(
+    public ResponseEntity<Map<String, Object>>
+    handleUnexpected(
             Exception ex
     ) {
-        log.error("Erro não tratado", ex);
+
+        log.error(
+                "Erro não tratado",
+                ex
+        );
 
         return ResponseEntity
                 .internalServerError()

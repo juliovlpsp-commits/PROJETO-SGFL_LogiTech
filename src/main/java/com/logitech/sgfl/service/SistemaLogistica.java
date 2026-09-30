@@ -14,6 +14,7 @@ import com.logitech.sgfl.repository.EntregaRepository;
 import com.logitech.sgfl.repository.MotoristaRepository;
 import com.logitech.sgfl.repository.VeiculoRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -34,189 +35,300 @@ public class SistemaLogistica implements ServicoGerenciamento {
         this.motoristaRepository = motoristaRepository;
     }
 
+    /**
+     * Aloca veículo e motorista para uma entrega PENDENTE.
+     *
+     * Ao concluir a alocação:
+     *
+     * PENDENTE -> EM_TRANSITO
+     */
     @Override
-    public Entrega alocarEntrega(Long entregaId, Long veiculoId, Long motoristaId) {
+    @Transactional
+    public Entrega alocarEntrega(
+            Long entregaId,
+            Long veiculoId,
+            Long motoristaId
+    ) {
 
-        Entrega entrega = buscarEntrega(entregaId);
+        Entrega entrega =
+                buscarEntrega(entregaId);
 
-        /*
-         * Uma entrega só pode ser alocada enquanto estiver PENDENTE.
-         */
         if (entrega.getStatus() != StatusEntrega.PENDENTE) {
+
             throw new RegraNegocioException(
                     "A entrega só pode ser alocada quando estiver PENDENTE. " +
-                            "Status atual: " + entrega.getStatus()
+                            "Status atual: " +
+                            entrega.getStatus()
             );
         }
 
-        Veiculo veiculo = veiculoRepository.findById(veiculoId)
-                .orElseThrow(() ->
-                        new RecursoNaoEncontradoException(
-                                "Veículo não encontrado: " + veiculoId
-                        )
-                );
+        Veiculo veiculo =
+                veiculoRepository.findById(veiculoId)
+                        .orElseThrow(() ->
+                                new RecursoNaoEncontradoException(
+                                        "Veículo não encontrado: " +
+                                                veiculoId
+                                )
+                        );
 
-        Motorista motorista = motoristaRepository.findById(motoristaId)
-                .orElseThrow(() ->
-                        new RecursoNaoEncontradoException(
-                                "Motorista não encontrado: " + motoristaId
-                        )
-                );
+        Motorista motorista =
+                motoristaRepository.findById(motoristaId)
+                        .orElseThrow(() ->
+                                new RecursoNaoEncontradoException(
+                                        "Motorista não encontrado: " +
+                                                motoristaId
+                                )
+                        );
 
         /*
-         * Validação da capacidade de carga.
+         * Um veículo não pode estar em duas entregas
+         * simultaneamente.
          */
-        if (entrega.getPesoCargaKg() > veiculo.getCapacidadeCargaKg()) {
+        if (entregaRepository
+                .existsByVeiculo_IdAndStatus(
+                        veiculoId,
+                        StatusEntrega.EM_TRANSITO
+                )) {
+
+            throw new RegraNegocioException(
+                    "O veículo já está alocado em outra entrega EM_TRANSITO."
+            );
+        }
+
+        /*
+         * Um motorista não pode estar em duas entregas
+         * simultaneamente.
+         */
+        if (entregaRepository
+                .existsByMotorista_IdAndStatus(
+                        motoristaId,
+                        StatusEntrega.EM_TRANSITO
+                )) {
+
+            throw new RegraNegocioException(
+                    "O motorista já está alocado em outra entrega EM_TRANSITO."
+            );
+        }
+
+        /*
+         * A carga deve caber no veículo.
+         */
+        if (entrega.getPesoCargaKg() >
+                veiculo.getCapacidadeCargaKg()) {
+
             throw new VeiculoIncompativelException(
                     "O peso da carga (" +
                             entrega.getPesoCargaKg() +
-                            "kg) excede a capacidade do veículo (" +
+                            " kg) excede a capacidade do veículo (" +
                             veiculo.getCapacidadeCargaKg() +
-                            "kg)."
+                            " kg)."
             );
         }
 
         /*
-         * Validação da CNH do motorista.
+         * Validação de CNH.
          */
-        TipoCNH cnh = motorista.getTipoCNH();
+        TipoCNH cnh =
+                motorista.getTipoCNH();
 
-        boolean isCaminhao =
-                veiculo instanceof Caminhao ||
-                        veiculo.getClass().getSimpleName().contains("Caminhao");
+        if (cnh == null) {
 
-        boolean isFurgao =
-                veiculo instanceof Furgao ||
-                        veiculo.getClass().getSimpleName().contains("Furgao");
-
-        if (isCaminhao && !cnh.podeDirigirCaminhao()) {
-            throw new VeiculoIncompativelException(
-                    "Motorista com CNH tipo '" + cnh +
-                            "' não possui permissão para dirigir Caminhão (Exige D ou E)."
+            throw new RegraNegocioException(
+                    "O motorista não possui uma categoria de CNH informada."
             );
         }
 
-        if (isFurgao && !cnh.podeDirigirFurgao()) {
+        boolean isCaminhao =
+                veiculo instanceof Caminhao ||
+                        veiculo.getClass()
+                                .getSimpleName()
+                                .contains("Caminhao");
+
+        boolean isFurgao =
+                veiculo instanceof Furgao ||
+                        veiculo.getClass()
+                                .getSimpleName()
+                                .contains("Furgao");
+
+        if (isCaminhao &&
+                !cnh.podeDirigirCaminhao()) {
+
             throw new VeiculoIncompativelException(
-                    "Motorista com CNH tipo '" + cnh +
+                    "Motorista com CNH tipo '" +
+                            cnh +
+                            "' não possui permissão para dirigir Caminhão."
+            );
+        }
+
+        if (isFurgao &&
+                !cnh.podeDirigirFurgao()) {
+
+            throw new VeiculoIncompativelException(
+                    "Motorista com CNH tipo '" +
+                            cnh +
                             "' não possui permissão para dirigir Furgão."
             );
         }
 
         /*
-         * A alocação define o veículo, motorista e muda
-         * automaticamente a entrega para EM_TRANSITO.
+         * Associação dos recursos.
          */
         entrega.setVeiculo(veiculo);
         entrega.setMotorista(motorista);
-        entrega.setStatus(StatusEntrega.EM_TRANSITO);
-
-        return entregaRepository.save(entrega);
-    }
-
-    @Override
-    public Entrega finalizarEntrega(Long entregaId) {
-
-        Entrega entrega = buscarEntrega(entregaId);
 
         /*
-         * A finalização só pode ocorrer quando a entrega
-         * estiver efetivamente em trânsito.
+         * A alocação coloca automaticamente
+         * a entrega em trânsito.
          */
-        if (entrega.getStatus() != StatusEntrega.EM_TRANSITO) {
+        entrega.setStatus(
+                StatusEntrega.EM_TRANSITO
+        );
+
+        return entregaRepository.save(
+                entrega
+        );
+    }
+
+    /**
+     * Finaliza uma entrega em trânsito.
+     *
+     * EM_TRANSITO -> ENTREGUE
+     */
+    @Override
+    @Transactional
+    public Entrega finalizarEntrega(
+            Long entregaId
+    ) {
+
+        Entrega entrega =
+                buscarEntrega(entregaId);
+
+        if (entrega.getStatus() !=
+                StatusEntrega.EM_TRANSITO) {
+
             throw new RegraNegocioException(
-                    "A entrega só pode ser finalizada quando estiver " +
-                            "EM_TRANSITO. Status atual: " + entrega.getStatus()
+                    "A entrega só pode ser finalizada quando estiver EM_TRANSITO. " +
+                            "Status atual: " +
+                            entrega.getStatus()
             );
         }
 
         /*
-         * Uma entrega em trânsito precisa possuir veículo
-         * e motorista associados.
+         * Uma entrega em trânsito precisa possuir
+         * os dois recursos.
          */
         if (entrega.getVeiculo() == null) {
+
             throw new RegraNegocioException(
                     "Não é possível finalizar a entrega porque nenhum veículo foi alocado."
             );
         }
 
         if (entrega.getMotorista() == null) {
+
             throw new RegraNegocioException(
                     "Não é possível finalizar a entrega porque nenhum motorista foi alocado."
             );
         }
 
-        entrega.setStatus(StatusEntrega.ENTREGUE);
+        /*
+         * Finalização oficial.
+         */
+        entrega.setStatus(
+                StatusEntrega.ENTREGUE
+        );
 
-        return entregaRepository.save(entrega);
+        return entregaRepository.save(
+                entrega
+        );
     }
 
+    /**
+     * Altera status somente através das transições
+     * permitidas pelo PATCH /status.
+     *
+     * PENDENTE    -> CANCELADA
+     * EM_TRANSITO -> CANCELADA
+     *
+     * EM_TRANSITO -> ENTREGUE não é permitido aqui.
+     * Deve passar por finalizarEntrega().
+     *
+     * PENDENTE -> EM_TRANSITO não é permitido aqui.
+     * Deve passar por alocarEntrega().
+     */
     @Override
-    public Entrega atualizarStatus(Long entregaId, StatusEntrega novoStatus) {
+    @Transactional
+    public Entrega atualizarStatus(
+            Long entregaId,
+            StatusEntrega novoStatus
+    ) {
 
-        Entrega entrega = buscarEntrega(entregaId);
+        Entrega entrega =
+                buscarEntrega(entregaId);
 
         if (novoStatus == null) {
+
             throw new RegraNegocioException(
                     "O novo status da entrega é obrigatório."
             );
         }
 
-        StatusEntrega statusAtual = entrega.getStatus();
+        StatusEntrega statusAtual =
+                entrega.getStatus();
 
         /*
-         * Se o status já é o mesmo, não há alteração.
+         * Não há nada para alterar.
          */
         if (statusAtual == novoStatus) {
             return entrega;
         }
 
-        /*
-         * O PATCH de status não pode substituir os fluxos
-         * de alocação e finalização.
-         *
-         * EM_TRANSITO deve ser consequência da alocação.
-         * ENTREGUE deve ser consequência da finalização.
-         *
-         * O PATCH permite apenas cancelamento.
-         */
-        if (!transicaoPermitida(statusAtual, novoStatus)) {
+        boolean cancelamentoPermitido =
+                (
+                        statusAtual ==
+                                StatusEntrega.PENDENTE
+                                ||
+                                statusAtual ==
+                                        StatusEntrega.EM_TRANSITO
+                )
+                        &&
+                        novoStatus ==
+                                StatusEntrega.CANCELADA;
+
+        if (!cancelamentoPermitido) {
+
             throw new RegraNegocioException(
                     "Transição de status inválida: " +
-                            statusAtual + " → " + novoStatus
+                            statusAtual +
+                            " → " +
+                            novoStatus
             );
         }
 
-        entrega.setStatus(novoStatus);
+        entrega.setStatus(
+                novoStatus
+        );
 
-        return entregaRepository.save(entrega);
+        return entregaRepository.save(
+                entrega
+        );
     }
 
     /**
-     * Transições permitidas diretamente pelo PATCH /status.
-     *
-     * PENDENTE -> CANCELADA
-     * EM_TRANSITO -> CANCELADA
+     * Procura a entrega ou lança 404 através
+     * do GlobalExceptionHandler.
      */
-    private boolean transicaoPermitida(
-            StatusEntrega statusAtual,
-            StatusEntrega novoStatus
+    private Entrega buscarEntrega(
+            Long entregaId
     ) {
-        return
-                (statusAtual == StatusEntrega.PENDENTE &&
-                        novoStatus == StatusEntrega.CANCELADA)
 
-                        ||
-
-                        (statusAtual == StatusEntrega.EM_TRANSITO &&
-                                novoStatus == StatusEntrega.CANCELADA);
-    }
-
-    private Entrega buscarEntrega(Long entregaId) {
-        return entregaRepository.findById(entregaId)
+        return entregaRepository.findById(
+                        entregaId
+                )
                 .orElseThrow(() ->
                         new RecursoNaoEncontradoException(
-                                "Entrega não encontrada: " + entregaId
+                                "Entrega não encontrada: " +
+                                        entregaId
                         )
                 );
     }

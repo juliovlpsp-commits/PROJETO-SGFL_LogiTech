@@ -1,5 +1,8 @@
 package com.logitech.sgfl.exceptions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -9,85 +12,164 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final Logger log =
+            LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    private Map<String, Object> baseBody(HttpStatus status, String error, String message) {
+    private Map<String, Object> baseBody(
+            HttpStatus status,
+            String error,
+            String message
+    ) {
         Map<String, Object> body = new LinkedHashMap<>();
+
         body.put("timestamp", LocalDateTime.now());
         body.put("status", status.value());
         body.put("error", error);
         body.put("message", message);
+
         String reqId = MDC.get("requestId");
+
         if (reqId != null) {
             body.put("requestId", reqId);
         }
+
         return body;
     }
 
     @ExceptionHandler(VeiculoIncompativelException.class)
-    public ResponseEntity<Map<String, Object>> handleVeiculoIncompativel(VeiculoIncompativelException ex) {
-        return ResponseEntity.badRequest().body(baseBody(HttpStatus.BAD_REQUEST, "Veículo Incompatível", ex.getMessage()));
+    public ResponseEntity<Map<String, Object>> handleVeiculoIncompativel(
+            VeiculoIncompativelException ex
+    ) {
+        return ResponseEntity.badRequest()
+                .body(
+                        baseBody(
+                                HttpStatus.BAD_REQUEST,
+                                "Veículo Incompatível",
+                                ex.getMessage()
+                        )
+                );
+    }
+
+    @ExceptionHandler(RegraNegocioException.class)
+    public ResponseEntity<Map<String, Object>> handleRegraNegocio(
+            RegraNegocioException ex
+    ) {
+        return ResponseEntity.badRequest()
+                .body(
+                        baseBody(
+                                HttpStatus.BAD_REQUEST,
+                                "Regra de negócio inválida",
+                                ex.getMessage()
+                        )
+                );
     }
 
     @ExceptionHandler(RecursoNaoEncontradoException.class)
-    public ResponseEntity<Map<String, Object>> handleRecursoNaoEncontrado(RecursoNaoEncontradoException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(baseBody(HttpStatus.NOT_FOUND, "Recurso não encontrado", ex.getMessage()));
+    public ResponseEntity<Map<String, Object>> handleRecursoNaoEncontrado(
+            RecursoNaoEncontradoException ex
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(
+                        baseBody(
+                                HttpStatus.NOT_FOUND,
+                                "Recurso não encontrado",
+                                ex.getMessage()
+                        )
+                );
     }
 
-    // Cobre, por exemplo, StatusEntrega.valueOf("valor-invalido") e outros argumentos mal formados
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
+    public ResponseEntity<Map<String, Object>> handleIllegalArgument(
+            IllegalArgumentException ex
+    ) {
         return ResponseEntity.badRequest()
-                .body(baseBody(HttpStatus.BAD_REQUEST, "Requisição inválida", ex.getMessage()));
+                .body(
+                        baseBody(
+                                HttpStatus.BAD_REQUEST,
+                                "Requisição inválida",
+                                ex.getMessage()
+                        )
+                );
     }
 
-    // Falhas de @Valid nos DTOs de entrada: devolve os campos que falharam, não uma mensagem genérica
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
+    public ResponseEntity<Map<String, Object>> handleValidation(
+            MethodArgumentNotValidException ex
+    ) {
         Map<String, String> fieldErrors = new LinkedHashMap<>();
-        ex.getBindingResult().getFieldErrors().forEach(fe ->
-                fieldErrors.put(fe.getField(), fe.getDefaultMessage()));
 
-        Map<String, Object> body = baseBody(HttpStatus.BAD_REQUEST, "Dados inválidos", "Um ou mais campos são inválidos");
+        ex.getBindingResult()
+                .getFieldErrors()
+                .forEach(
+                        fieldError ->
+                                fieldErrors.put(
+                                        fieldError.getField(),
+                                        fieldError.getDefaultMessage()
+                                )
+                );
+
+        Map<String, Object> body =
+                baseBody(
+                        HttpStatus.BAD_REQUEST,
+                        "Dados inválidos",
+                        "Um ou mais campos são inválidos"
+                );
+
         body.put("campos", fieldErrors);
+
         return ResponseEntity.badRequest().body(body);
     }
 
-    // Falha de autenticação (ex.: credenciais erradas no /api/auth/login).
-    // Mensagem genérica de propósito: não revela se foi "usuário não existe" ou "senha errada".
     @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<Map<String, Object>> handleAuthentication(AuthenticationException ex) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(baseBody(HttpStatus.UNAUTHORIZED, "Não autorizado", "Credenciais inválidas."));
+    public ResponseEntity<Map<String, Object>> handleAuthentication(
+            AuthenticationException ex
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(
+                        baseBody(
+                                HttpStatus.UNAUTHORIZED,
+                                "Não autorizado",
+                                "Credenciais inválidas."
+                        )
+                );
     }
 
-    // JSON malformado ou com um valor que não existe (ex.: um status fora do enum,
-    // um número no lugar de texto). Precisa de handler próprio aqui: sem ele, cairia
-    // no catch-all de Exception.class abaixo e viraria 500 por engano, quando na
-    // verdade é sempre um erro de requisição do cliente (400).
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<Map<String, Object>> handleJsonMalformado(HttpMessageNotReadableException ex) {
-        return ResponseEntity.badRequest().body(baseBody(HttpStatus.BAD_REQUEST, "Requisição inválida",
-                "O corpo da requisição está mal formado ou contém um valor inválido."));
+    public ResponseEntity<Map<String, Object>> handleJsonMalformado(
+            HttpMessageNotReadableException ex
+    ) {
+        return ResponseEntity.badRequest()
+                .body(
+                        baseBody(
+                                HttpStatus.BAD_REQUEST,
+                                "Requisição inválida",
+                                "O corpo da requisição está mal formado ou contém um valor inválido."
+                        )
+                );
     }
 
-    // Rede de segurança final: qualquer coisa não prevista vira 500 genérico.
-    // O detalhe real vai só pro log do servidor, nunca pro cliente (evita vazar stack trace/estrutura interna).
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleUnexpected(Exception ex) {
+    public ResponseEntity<Map<String, Object>> handleUnexpected(
+            Exception ex
+    ) {
         log.error("Erro não tratado", ex);
-        return ResponseEntity.internalServerError()
-                .body(baseBody(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno", "Ocorreu um erro inesperado. Tente novamente mais tarde."));
+
+        return ResponseEntity
+                .internalServerError()
+                .body(
+                        baseBody(
+                                HttpStatus.INTERNAL_SERVER_ERROR,
+                                "Erro interno",
+                                "Ocorreu um erro inesperado. Tente novamente mais tarde."
+                        )
+                );
     }
 }

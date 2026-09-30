@@ -4,6 +4,7 @@ import com.logitech.sgfl.dto.EntregaRequest;
 import com.logitech.sgfl.dto.StatusUpdateRequest;
 import com.logitech.sgfl.enums.StatusEntrega;
 import com.logitech.sgfl.exceptions.RecursoNaoEncontradoException;
+import com.logitech.sgfl.exceptions.RegraNegocioException;
 import com.logitech.sgfl.me.Entrega;
 import com.logitech.sgfl.repository.EntregaRepository;
 import com.logitech.sgfl.service.ServicoGerenciamento;
@@ -26,62 +27,135 @@ public class EntregaController {
     private final ServicoGerenciamento servicoGerenciamento;
     private final EntregaRepository entregaRepository;
 
-    public EntregaController(ServicoGerenciamento servicoGerenciamento, EntregaRepository entregaRepository) {
+    public EntregaController(
+            ServicoGerenciamento servicoGerenciamento,
+            EntregaRepository entregaRepository
+    ) {
         this.servicoGerenciamento = servicoGerenciamento;
         this.entregaRepository = entregaRepository;
     }
 
     /**
-     * Lista entregas de forma paginada (nunca devolve a tabela inteira de uma vez —
-     * com milhões de registros isso derrubaria o banco e o navegador do cliente).
-     * Ordenado por id para que a posição de cada linha na tela não mude sozinha
-     * quando um registro é atualizado.
+     * Lista entregas de forma paginada.
      */
     @GetMapping
     public Page<Entrega> listar(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "" + TAMANHO_PAGINA_PADRAO) int size
     ) {
-        int tamanhoSeguro = Math.min(Math.max(size, 1), TAMANHO_PAGINA_MAXIMO);
-        Pageable pageable = PageRequest.of(Math.max(page, 0), tamanhoSeguro, Sort.by("id").ascending());
+        int tamanhoSeguro =
+                Math.min(
+                        Math.max(size, 1),
+                        TAMANHO_PAGINA_MAXIMO
+                );
+
+        Pageable pageable =
+                PageRequest.of(
+                        Math.max(page, 0),
+                        tamanhoSeguro,
+                        Sort.by("id").ascending()
+                );
+
         return entregaRepository.findAll(pageable);
     }
 
+    /**
+     * Cria uma nova entrega.
+     *
+     * Toda nova entrega obrigatoriamente começa como PENDENTE.
+     * O cliente não pode criar uma entrega já EM_TRANSITO,
+     * ENTREGUE ou CANCELADA.
+     */
     @PostMapping
-    public ResponseEntity<Entrega> criarEntrega(@Valid @RequestBody EntregaRequest request) {
+    public ResponseEntity<Entrega> criarEntrega(
+            @Valid @RequestBody EntregaRequest request
+    ) {
+        if (request.getStatus() != StatusEntrega.PENDENTE) {
+            throw new RegraNegocioException(
+                    "Uma nova entrega deve ser criada com status PENDENTE."
+            );
+        }
+
         Entrega entrega = new Entrega();
+
         entrega.setDescricao(request.getDescricao());
         entrega.setEnderecoDestino(request.getEnderecoDestino());
         entrega.setEnderecoOrigem(request.getEnderecoOrigem());
         entrega.setPesoCargaKg(request.getPesoCargaKg());
-        entrega.setStatus(request.getStatus());
-        return ResponseEntity.ok(entregaRepository.save(entrega));
+        entrega.setStatus(StatusEntrega.PENDENTE);
+
+        return ResponseEntity.ok(
+                entregaRepository.save(entrega)
+        );
     }
 
+    /**
+     * Aloca veículo e motorista para uma entrega.
+     *
+     * A regra de negócio está no SistemaLogistica.
+     * Se a alocação for válida, a entrega muda para EM_TRANSITO.
+     */
     @PutMapping("/{id}/alocar")
-    public ResponseEntity<Entrega> alocar(@PathVariable Long id, @RequestParam Long veiculoId, @RequestParam Long motoristaId) {
-        return ResponseEntity.ok(servicoGerenciamento.alocarEntrega(id, veiculoId, motoristaId));
+    public ResponseEntity<Entrega> alocar(
+            @PathVariable Long id,
+            @RequestParam Long veiculoId,
+            @RequestParam Long motoristaId
+    ) {
+        return ResponseEntity.ok(
+                servicoGerenciamento.alocarEntrega(
+                        id,
+                        veiculoId,
+                        motoristaId
+                )
+        );
     }
 
+    /**
+     * Finaliza uma entrega.
+     *
+     * A regra exige que ela esteja EM_TRANSITO
+     * e possua veículo e motorista alocados.
+     */
     @PutMapping("/{id}/finalizar")
-    public ResponseEntity<Entrega> finalizar(@PathVariable Long id) {
-        return ResponseEntity.ok(servicoGerenciamento.finalizarEntrega(id));
+    public ResponseEntity<Entrega> finalizar(
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(
+                servicoGerenciamento.finalizarEntrega(id)
+        );
     }
 
+    /**
+     * Atualiza o status através das transições permitidas.
+     *
+     * O controller não altera o status diretamente.
+     * A decisão fica centralizada no serviço.
+     */
     @PatchMapping("/{id}/status")
-    public ResponseEntity<Entrega> atualizarStatus(@PathVariable Long id, @Valid @RequestBody StatusUpdateRequest request) {
-        Entrega entrega = entregaRepository.findById(id)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Entrega não encontrada: " + id));
-        entrega.setStatus(request.getStatus());
-        return ResponseEntity.ok(entregaRepository.save(entrega));
+    public ResponseEntity<Entrega> atualizarStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody StatusUpdateRequest request
+    ) {
+        return ResponseEntity.ok(
+                servicoGerenciamento.atualizarStatus(
+                        id,
+                        request.getStatus()
+                )
+        );
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> excluir(@PathVariable Long id) {
+    public ResponseEntity<Void> excluir(
+            @PathVariable Long id
+    ) {
         if (!entregaRepository.existsById(id)) {
-            throw new RecursoNaoEncontradoException("Entrega não encontrada: " + id);
+            throw new RecursoNaoEncontradoException(
+                    "Entrega não encontrada: " + id
+            );
         }
+
         entregaRepository.deleteById(id);
+
         return ResponseEntity.noContent().build();
     }
 }

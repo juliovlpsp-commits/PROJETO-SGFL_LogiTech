@@ -13,7 +13,7 @@ INSERT INTO public.caminhao (quantidade_eixos, id) VALUES
     ON CONFLICT (id) DO NOTHING;
 
 -- Inserir Motoristas
-INSERT INTO public.motorista (id, cpf, nome, tipocnh) VALUES
+INSERT INTO public.motorista (id, cpf, nome, tipo_cnh) VALUES
 (1, '12345678900', 'Carlos Silva', 'E'),
 (2, '11122233344', 'Lucas Silva', 'B'),
 (3, '99988877766', 'Lucas CNH B', 'B'),

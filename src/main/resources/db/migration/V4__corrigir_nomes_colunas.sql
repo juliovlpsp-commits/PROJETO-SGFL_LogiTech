@@ -1,18 +1,4 @@
--- Corrige nomes de coluna que ficaram divergentes do que o Hibernate espera.
---
--- O Hibernate converte camelCase para snake_case automaticamente:
---   Furgao.volumeM3   -> volume_m3
---   Motorista.tipoCNH -> tipo_cnh
---
--- A V1 histórica criou:
---   furgao.volumem3
---   motorista.tipocnh
---
--- Esta migration corrige esses nomes depois da V3.
---
--- A operação é defensiva:
--- se a coluna antiga existir, ela será renomeada.
--- se já estiver correta, não faz nada.
+-- Corrige os nomes das colunas para o padrão esperado pelo Hibernate.
 
 DO $$
 BEGIN

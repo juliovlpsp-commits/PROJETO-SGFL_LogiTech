@@ -902,6 +902,7 @@ export default function Dashboard({ token, onLogout }) {
 
     return (
         <div
+            className="sgfl-page"
             style={
                 styles.page
             }
@@ -1851,6 +1852,32 @@ export default function Dashboard({ token, onLogout }) {
 
             <style>
                 {`
+
+                    .sgfl-page button {
+                        -webkit-backdrop-filter: blur(16px) saturate(160%);
+                        backdrop-filter: blur(16px) saturate(160%);
+                        -webkit-tap-highlight-color: transparent;
+                        will-change: transform, filter, box-shadow;
+                    }
+
+                    .sgfl-page button:not(:disabled):hover {
+                        transform: translateY(-1px);
+                        filter: brightness(1.08);
+                        box-shadow:
+                            inset 0 1px 0 rgba(255,255,255,0.14),
+                            0 10px 28px rgba(0,0,0,0.24);
+                    }
+
+                    .sgfl-page button:not(:disabled):active {
+                        transform: translateY(0) scale(0.985);
+                        filter: brightness(0.98);
+                    }
+
+                    .sgfl-page button:not(:disabled):focus-visible {
+                        outline: 2px solid rgba(255,255,255,0.22);
+                        outline-offset: 2px;
+                    }
+
                     .sgfl-table-wrap {
                         width: 100%;
                         overflow-x: auto;
@@ -2220,6 +2247,7 @@ function getStyles(theme) {
         page: {
             minHeight: '100vh',
             backgroundColor: theme.bg,
+            backgroundImage: 'radial-gradient(circle at 20% 8%, rgba(255,255,255,0.035), transparent 24%), radial-gradient(circle at 86% 72%, rgba(226,126,86,0.028), transparent 28%)',
             color: theme.ink,
             fontFamily:
                 "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
@@ -2278,6 +2306,10 @@ function getStyles(theme) {
         },
 
         btnResources: {
+            backdropFilter: 'blur(16px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
+            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             display: 'inline-flex',
             alignItems: 'center',
             gap: '7px',
@@ -2285,7 +2317,7 @@ function getStyles(theme) {
             borderRadius: '8px',
             border:
                 `1px solid ${theme.border}`,
-            backgroundColor: theme.surface,
+            backgroundColor: 'rgba(255,255,255,0.075)',
             color: theme.ink,
             fontSize: '12px',
             fontWeight: 700,
@@ -2293,12 +2325,16 @@ function getStyles(theme) {
         },
 
         themeToggle: {
+            backdropFilter: 'blur(16px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
+            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             width: '36px',
             height: '36px',
             borderRadius: '8px',
             border:
                 `1px solid ${theme.border}`,
-            backgroundColor: theme.surface,
+            backgroundColor: 'rgba(255,255,255,0.075)',
             color: theme.ink,
             display: 'flex',
             alignItems: 'center',
@@ -2307,11 +2343,15 @@ function getStyles(theme) {
         },
 
         btnLogout: {
+            backdropFilter: 'blur(16px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
+            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             padding: '9px 13px',
             borderRadius: '8px',
             border:
                 `1px solid ${theme.border}`,
-            backgroundColor: 'transparent',
+            backgroundColor: 'rgba(255,255,255,0.045)',
             color: theme.danger,
             fontSize: '12px',
             fontWeight: 700,
@@ -2471,11 +2511,15 @@ function getStyles(theme) {
         },
 
         btnSubmit: {
+            backdropFilter: 'blur(16px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
+            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             width: '100%',
             padding: '11px',
             border: 'none',
             borderRadius: '8px',
-            backgroundColor: theme.accent,
+            backgroundColor: 'rgba(226,126,86,0.72)',
             color: theme.accentInk,
             fontSize: '13px',
             fontWeight: 700,
@@ -2483,11 +2527,14 @@ function getStyles(theme) {
         },
 
         btnDisabledLarge: {
+            backdropFilter: 'blur(16px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 4px 12px rgba(0,0,0,0.10)',
             width: '100%',
             padding: '11px',
             border: 'none',
             borderRadius: '8px',
-            backgroundColor: theme.borderStrong,
+            backgroundColor: 'rgba(255,255,255,0.035)',
             color: theme.inkSoft,
             fontSize: '13px',
             fontWeight: 700,
@@ -2510,6 +2557,10 @@ function getStyles(theme) {
         },
 
         refreshButton: {
+            backdropFilter: 'blur(16px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
+            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             display: 'inline-flex',
             alignItems: 'center',
             gap: '6px',
@@ -2517,8 +2568,7 @@ function getStyles(theme) {
             borderRadius: '8px',
             border:
                 `1px solid ${theme.border}`,
-            backgroundColor:
-            theme.surfaceAlt,
+            backgroundColor: 'rgba(255,255,255,0.075)',
             color:
             theme.ink,
             fontSize: '11px',
@@ -2577,10 +2627,14 @@ function getStyles(theme) {
         },
 
         btnPrimary: {
+            backdropFilter: 'blur(16px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
+            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             padding: '7px 10px',
             border: 'none',
             borderRadius: '7px',
-            backgroundColor: theme.accent,
+            backgroundColor: 'rgba(226,126,86,0.72)',
             color: theme.accentInk,
             fontSize: '11px',
             fontWeight: 700,
@@ -2588,11 +2642,15 @@ function getStyles(theme) {
         },
 
         btnCancel: {
+            backdropFilter: 'blur(16px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
+            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             padding: '7px 10px',
             borderRadius: '7px',
             border:
                 `1px solid ${theme.border}`,
-            backgroundColor: 'transparent',
+            backgroundColor: 'rgba(255,255,255,0.05)',
             color: theme.danger,
             fontSize: '11px',
             fontWeight: 700,
@@ -2600,11 +2658,14 @@ function getStyles(theme) {
         },
 
         btnFinalize: {
+            backdropFilter: 'blur(16px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
+            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             padding: '7px 10px',
             border: 'none',
             borderRadius: '7px',
-            backgroundColor:
-            theme.statuses.EM_TRANSITO.dot,
+            backgroundColor: 'rgba(76,130,85,0.70)',
             color: '#FFFFFF',
             fontSize: '11px',
             fontWeight: 700,
@@ -2612,11 +2673,15 @@ function getStyles(theme) {
         },
 
         btnDelete: {
+            backdropFilter: 'blur(16px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
+            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             padding: '7px 10px',
             borderRadius: '7px',
             border:
                 `1px solid ${theme.border}`,
-            backgroundColor: 'transparent',
+            backgroundColor: 'rgba(255,255,255,0.045)',
             color: theme.danger,
             fontSize: '11px',
             fontWeight: 700,
@@ -2624,12 +2689,14 @@ function getStyles(theme) {
         },
 
         btnDisabled: {
+            backdropFilter: 'blur(16px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 4px 12px rgba(0,0,0,0.10)',
             padding: '7px 10px',
             borderRadius: '7px',
             border:
                 `1px solid ${theme.border}`,
-            backgroundColor:
-            theme.surfaceAlt,
+            backgroundColor: 'rgba(255,255,255,0.035)',
             color: theme.inkSoft,
             fontSize: '11px',
             fontWeight: 700,
@@ -2655,12 +2722,15 @@ function getStyles(theme) {
         },
 
         pageBtn: {
+            backdropFilter: 'blur(16px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
+            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             padding: '8px 12px',
             borderRadius: '8px',
             border:
                 `1px solid ${theme.border}`,
-            backgroundColor:
-            theme.surfaceAlt,
+            backgroundColor: 'rgba(255,255,255,0.06)',
             color: theme.ink,
             fontSize: '12px',
             fontWeight: 600,
@@ -2720,13 +2790,16 @@ function getStyles(theme) {
         },
 
         modalClose: {
+            backdropFilter: 'blur(16px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
+            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             width: '33px',
             height: '33px',
             borderRadius: '8px',
             border:
                 `1px solid ${theme.border}`,
-            backgroundColor:
-            theme.surfaceAlt,
+            backgroundColor: 'rgba(255,255,255,0.06)',
             color: theme.ink,
             fontSize: '21px',
             cursor: 'pointer'
@@ -2740,12 +2813,15 @@ function getStyles(theme) {
         },
 
         btnSecondary: {
+            backdropFilter: 'blur(16px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
+            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             padding: '9px 13px',
             borderRadius: '8px',
             border:
                 `1px solid ${theme.border}`,
-            backgroundColor:
-            theme.surfaceAlt,
+            backgroundColor: 'rgba(255,255,255,0.06)',
             color: theme.ink,
             fontSize: '12px',
             fontWeight: 600,

@@ -1,37 +1,77 @@
-// src/App.jsx
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Login from './Login';
 import Dashboard from './Dashboard';
+import GestaoComercial from './GestaoComercial';
 
 export default function App() {
     const [token, setToken] = useState(() => {
-        const savedToken = localStorage.getItem('token');
-        return (savedToken && savedToken !== 'undefined' && savedToken !== 'null') ? savedToken : null;
+        const savedToken =
+            localStorage.getItem('token');
+
+        return (
+            savedToken &&
+            savedToken !== 'undefined' &&
+            savedToken !== 'null'
+        )
+            ? savedToken
+            : null;
     });
 
-    const handleLoginSuccess = (newToken) => {
-        localStorage.setItem('token', newToken);
+    const handleLoginSuccess = (
+        newToken
+    ) => {
+        localStorage.setItem(
+            'token',
+            newToken
+        );
+
         setToken(newToken);
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('token');
+        localStorage.removeItem(
+            'token'
+        );
+
         setToken(null);
     };
 
-    // Disparado pelo interceptor do api.js quando o backend responde 401 (token expirado).
     useEffect(() => {
-        const aoExpirar = () => setToken(null);
-        window.addEventListener('sgfl:unauthorized', aoExpirar);
-        return () => window.removeEventListener('sgfl:unauthorized', aoExpirar);
+        const aoExpirar = () => {
+            setToken(null);
+        };
+
+        window.addEventListener(
+            'sgfl:unauthorized',
+            aoExpirar
+        );
+
+        return () =>
+            window.removeEventListener(
+                'sgfl:unauthorized',
+                aoExpirar
+            );
     }, []);
 
     return (
         <div>
             {!token ? (
-                <Login onLoginSuccess={handleLoginSuccess} />
+                <Login
+                    onLoginSuccess={
+                        handleLoginSuccess
+                    }
+                />
             ) : (
-                <Dashboard token={token} onLogout={handleLogout} />
+                <>
+                    <Dashboard
+                        token={token}
+                        onLogout={
+                            handleLogout
+                        }
+                    />
+
+                    <GestaoComercial />
+                </>
             )}
         </div>
     );

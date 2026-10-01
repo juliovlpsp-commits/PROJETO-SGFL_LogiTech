@@ -1,9 +1,12 @@
 package com.logitech.sgfl.me;
+import jakarta.persistence.Column;
 
 import jakarta.persistence.Entity;
 
 @Entity
 public class Furgao extends Veiculo {
+
+    @Column(name = "volume_m3")
     private double volumeM3;
 
     public Furgao() {}

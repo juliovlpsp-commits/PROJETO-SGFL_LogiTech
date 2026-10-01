@@ -1,6 +1,7 @@
 package com.logitech.sgfl.me;
 
 import com.logitech.sgfl.enums.TipoCNH;
+import jakarta.persistence.Column;
 import jakarta.persistence.*;
 
 @Entity
@@ -13,6 +14,7 @@ public class Motorista {
     private String cpf;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_cnh")
     private TipoCNH tipoCNH;
 
     public Motorista() {}

@@ -32,74 +32,195 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final UserDetailsService userDetailsService;
 
-    /** Origens do front-end autorizadas pelo CORS (separadas por vírgula). */
     @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:3000}")
     private List<String> allowedOrigins;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter, UserDetailsService userDetailsService) {
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthFilter,
+            UserDetailsService userDetailsService
+    ) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.userDetailsService = userDetailsService;
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http
+    ) throws Exception {
+
         http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors ->
+                        cors.configurationSource(
+                                corsConfigurationSource()
+                        )
+                )
+                .csrf(
+                        AbstractHttpConfigurer::disable
+                )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/error").permitAll()
-                        .requestMatchers("/api/auth/**").permitAll()
 
-                        // Operações destrutivas e de cadastro de frota: somente ADMIN.
-                        .requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/veiculos/**", "/api/motoristas/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/veiculos/**", "/api/motoristas/**").hasRole("ADMIN")
+                        .requestMatchers(
+                                "/error"
+                        ).permitAll()
 
-                        // Demais rotas (listagens, criar/alocar/finalizar/cancelar entregas): qualquer usuário autenticado.
+                        .requestMatchers(
+                                "/api/auth/**"
+                        ).permitAll()
+
+                        /*
+                         * Exclusão continua sendo ADMIN.
+                         */
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/api/**"
+                        ).hasRole("ADMIN")
+
+                        /*
+                         * Frota: ADMIN.
+                         */
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/veiculos/**",
+                                "/api/motoristas/**"
+                        ).hasRole("ADMIN")
+
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/veiculos/**",
+                                "/api/motoristas/**"
+                        ).hasRole("ADMIN")
+
+                        /*
+                         * Produtos e estoque: ADMIN.
+                         */
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/produtos/**"
+                        ).hasRole("ADMIN")
+
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/produtos/**"
+                        ).hasRole("ADMIN")
+
+                        /*
+                         * Cadastro/alteração de clientes:
+                         * ADMIN ou OPERADOR.
+                         */
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/clientes/**"
+                        ).hasAnyRole(
+                                "ADMIN",
+                                "OPERADOR"
+                        )
+
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/clientes/**"
+                        ).hasAnyRole(
+                                "ADMIN",
+                                "OPERADOR"
+                        )
+
+                        /*
+                         * Listagens, pedidos e fluxo de entregas:
+                         * usuário autenticado.
+                         */
                         .anyRequest().authenticated()
                 )
-                // Sem token (ou token expirado/invalido) -> 401. Autenticado sem permissao -> 403.
-                // O front-end depende dessa distincao para mandar o usuario de volta ao login.
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                .exceptionHandling(ex ->
+                        ex.authenticationEntryPoint(
+                                new HttpStatusEntryPoint(
+                                        HttpStatus.UNAUTHORIZED
+                                )
+                        )
                 )
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(
+                                SessionCreationPolicy.STATELESS
+                        )
                 )
-                .authenticationProvider(authenticationProvider())
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .authenticationProvider(
+                        authenticationProvider()
+                )
+                .addFilterBefore(
+                        jwtAuthFilter,
+                        UsernamePasswordAuthenticationFilter.class
+                );
 
         return http.build();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(allowedOrigins);
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+
+        CorsConfiguration configuration =
+                new CorsConfiguration();
+
+        configuration.setAllowedOrigins(
+                allowedOrigins
+        );
+
+        configuration.setAllowedMethods(
+                List.of(
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "PATCH",
+                        "DELETE",
+                        "OPTIONS"
+                )
+        );
+
+        configuration.setAllowedHeaders(
+                List.of(
+                        "Authorization",
+                        "Content-Type"
+                )
+        );
+
         configuration.setAllowCredentials(true);
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
+        source.registerCorsConfiguration(
+                "/**",
+                configuration
+        );
+
         return source;
     }
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(userDetailsService);
-        authProvider.setPasswordEncoder(passwordEncoder());
+
+        DaoAuthenticationProvider authProvider =
+                new DaoAuthenticationProvider();
+
+        authProvider.setUserDetailsService(
+                userDetailsService
+        );
+
+        authProvider.setPasswordEncoder(
+                passwordEncoder()
+        );
+
         return authProvider;
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration config
+    ) throws Exception {
+
         return config.getAuthenticationManager();
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
+
         return new BCryptPasswordEncoder();
     }
 }

@@ -111,11 +111,7 @@ export default function Login({ onLoginSuccess }) {
                     </div>
 
                     <div className="sgfl-brand-row" style={styles.brandRow}>
-                        <div style={styles.mark}>
-                            <span />
-                            <span />
-                            <span />
-                        </div>
+                        <Crest size={46} />
 
                         <div>
                             <div style={styles.wordmark}>
@@ -187,7 +183,7 @@ export default function Login({ onLoginSuccess }) {
                         02 / ACESSO
                     </div>
 
-                    <div style={styles.loginGrid}>
+                    <div className="sgfl-login-grid" style={styles.loginGrid}>
                         <div style={styles.loginEditorial}>
                             <div style={styles.miniMark}>
                                 SGFL
@@ -218,6 +214,10 @@ export default function Login({ onLoginSuccess }) {
                             className="sgfl-login-card"
                             style={styles.card}
                         >
+                            <div style={styles.crestWrap}>
+                                <Crest size={34} />
+                            </div>
+
                             <div style={styles.cardTop}>
                                 <span>
                                     AUTENTICAÇÃO
@@ -394,6 +394,20 @@ export default function Login({ onLoginSuccess }) {
 
                     .sgfl-login .sgfl-login-field:focus-within {
                         transform: translateY(-1px);
+                        border-color: ${dark ? '#C85A6E' : '#7A1F2B'} !important;
+                        box-shadow: 0 0 0 3px ${dark ? 'rgba(165,69,82,0.24)' : 'rgba(122,31,43,0.14)'};
+                    }
+
+                    /* Faixa vinho no topo do cartão (recortada pelas bordas arredondadas) */
+                    .sgfl-login .sgfl-login-card::before {
+                        content: '';
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        height: 4px;
+                        background: ${dark ? '#A54552' : '#7A1F2B'};
+                        pointer-events: none;
                     }
 
                     .sgfl-login .sgfl-login-field:focus-within svg {
@@ -811,15 +825,20 @@ function getStyles(dark) {
             height: '100svh',
             display: 'flex',
             alignItems: 'center',
-            padding: '74px 8vw 70px 11vw',
+            padding: '56px 6vw 52px 6vw',
             backgroundColor: dark
                 ? '#14080C'
-                : '#F1E1E6'
+                : '#F1E1E6',
+            backgroundImage: dark
+                ? 'radial-gradient(circle at 78% 30%, rgba(165, 69, 82, 0.16), transparent 42%),' +
+                'radial-gradient(circle, rgba(244, 233, 236, 0.035) 0.7px, transparent 0.8px)'
+                : 'radial-gradient(circle at 78% 30%, rgba(165, 69, 82, 0.12), transparent 42%)',
+            backgroundSize: dark ? 'auto, 8px 8px' : 'auto'
         },
 
         loginPanelInner: {
             width: '100%',
-            maxWidth: '1320px',
+            maxWidth: '1060px',
             margin: '0 auto'
         },
 
@@ -834,9 +853,10 @@ function getStyles(dark) {
         loginGrid: {
             display: 'grid',
             gridTemplateColumns:
-                'minmax(280px, 0.86fr) minmax(430px, 1fr)',
+                'minmax(240px, 1fr) minmax(340px, 430px)',
+            justifyContent: 'center',
             alignItems: 'center',
-            gap: '9vw'
+            gap: '6vw'
         },
 
         loginEditorial: {
@@ -848,6 +868,7 @@ function getStyles(dark) {
             alignItems: 'center',
             justifyContent: 'center',
             padding: '7px 9px',
+            borderRadius: '8px',
             border: `1px solid ${palette.lineStrong}`,
             color: palette.maroon,
             fontSize: '9px',
@@ -894,23 +915,31 @@ function getStyles(dark) {
 
         card: {
             position: 'relative',
-            padding: '28px 28px 23px',
-            border: `1px solid ${palette.lineStrong}`,
-            borderRadius: '2px',
+            width: '100%',
+            padding: '30px 28px 20px',
+            overflow: 'hidden',
+            border: `1px solid ${dark ? 'rgba(165,69,82,0.50)' : 'rgba(122,31,43,0.30)'}`,
+            borderRadius: '18px',
             backgroundColor: dark
-                ? 'rgba(31,27,24,0.82)'
-                : 'rgba(255,251,246,0.84)',
+                ? 'rgba(30,13,20,0.90)'
+                : 'rgba(255,247,249,0.92)',
             backdropFilter: 'blur(22px)',
             WebkitBackdropFilter: 'blur(22px)',
             boxShadow:
-                `0 28px 80px ${palette.shadow}, inset 0 1px 0 rgba(255,255,255,0.14)`
+                `0 28px 80px ${palette.shadow}, 0 0 0 1px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.08)`
+        },
+
+        crestWrap: {
+            display: 'flex',
+            justifyContent: 'center',
+            marginBottom: '14px'
         },
 
         cardTop: {
             display: 'flex',
             justifyContent: 'space-between',
             gap: '14px',
-            paddingBottom: '15px',
+            paddingBottom: '12px',
             borderBottom: `1px solid ${palette.line}`,
             color: palette.soft,
             fontSize: '8px',
@@ -921,8 +950,8 @@ function getStyles(dark) {
         form: {
             display: 'flex',
             flexDirection: 'column',
-            gap: '17px',
-            paddingTop: '28px'
+            gap: '14px',
+            paddingTop: '20px'
         },
 
         formIntro: {
@@ -933,7 +962,7 @@ function getStyles(dark) {
             margin: 0,
             fontFamily:
                 "Georgia, 'Times New Roman', serif",
-            fontSize: '28px',
+            fontSize: '26px',
             fontWeight: 400,
             lineHeight: 1.1
         },
@@ -949,6 +978,7 @@ function getStyles(dark) {
             alignItems: 'center',
             gap: '8px',
             padding: '10px 11px',
+            borderRadius: '10px',
             border: `1px solid ${dark ? 'rgba(180,79,92,0.32)' : 'rgba(122,31,43,0.2)'}`,
             backgroundColor: dark
                 ? 'rgba(122,31,43,0.18)'
@@ -984,13 +1014,13 @@ function getStyles(dark) {
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            minHeight: '48px',
-            padding: '0 12px',
-            border: `1px solid ${palette.lineStrong}`,
-            borderRadius: '1px',
+            minHeight: '44px',
+            padding: '0 14px',
+            border: `1px solid ${dark ? 'rgba(165,69,82,0.45)' : 'rgba(122,31,43,0.30)'}`,
+            borderRadius: '12px',
             backgroundColor: dark
-                ? 'rgba(255,255,255,0.035)'
-                : 'rgba(255,255,255,0.54)',
+                ? 'rgba(165,69,82,0.06)'
+                : 'rgba(255,255,255,0.70)',
             transition:
                 'transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease'
         },
@@ -1013,11 +1043,11 @@ function getStyles(dark) {
             justifyContent: 'space-between',
             gap: '12px',
             marginTop: '6px',
-            minHeight: '52px',
+            minHeight: '46px',
             padding: '0 16px 0 18px',
-            border: `1px solid ${palette.maroonDeep}`,
-            borderRadius: '1px',
-            backgroundColor: palette.maroonDeep,
+            border: `1px solid ${dark ? '#B4546A' : palette.maroonDeep}`,
+            borderRadius: '12px',
+            backgroundColor: dark ? '#862234' : palette.maroonDeep,
             color: palette.cream,
             fontSize: '11px',
             fontWeight: 800,
@@ -1025,7 +1055,7 @@ function getStyles(dark) {
             textTransform: 'uppercase',
             cursor: 'pointer',
             boxShadow:
-                `0 12px 25px ${dark ? 'rgba(83,18,28,0.24)' : 'rgba(83,18,28,0.12)'}`,
+                `0 12px 25px ${dark ? 'rgba(83,18,28,0.24)' : 'rgba(83,18,28,0.12)'}, inset 0 0 0 3px ${dark ? 'rgba(20,8,12,0.25)' : 'rgba(255,255,255,0.10)'}`,
             transition:
                 'transform 180ms ease, box-shadow 180ms ease, filter 180ms ease'
         },
@@ -1034,8 +1064,8 @@ function getStyles(dark) {
             display: 'flex',
             justifyContent: 'space-between',
             gap: '16px',
-            marginTop: '23px',
-            paddingTop: '15px',
+            marginTop: '18px',
+            paddingTop: '12px',
             borderTop: `1px solid ${palette.line}`,
             color: palette.soft,
             fontSize: '8px',
@@ -1043,6 +1073,62 @@ function getStyles(dark) {
             textTransform: 'uppercase'
         }
     };
+}
+
+/**
+ * Brasão do SGFL (original): escudo vinho com uma caixa/volume ao centro.
+ * Mesmo desenho do favicon, para a identidade ficar consistente.
+ */
+function Crest({ size = 46 }) {
+    return (
+        <svg
+            width={size}
+            height={Math.round(size * 1.16)}
+            viewBox="0 0 48 56"
+            fill="none"
+            role="img"
+            aria-label="SGFL"
+        >
+            <defs>
+                <linearGradient
+                    id="sgflCrestGradient"
+                    x1="0"
+                    y1="0"
+                    x2="1"
+                    y2="1"
+                >
+                    <stop offset="0" stopColor="#B84D5E" />
+                    <stop offset="0.55" stopColor="#8A2536" />
+                    <stop offset="1" stopColor="#5E1A27" />
+                </linearGradient>
+            </defs>
+
+            <path
+                d="M24 2.5 43.5 8.5V28C43.5 41.5 34.5 50.5 24 54 13.5 50.5 4.5 41.5 4.5 28V8.5L24 2.5Z"
+                fill="url(#sgflCrestGradient)"
+                stroke="#F4D9DF"
+                strokeWidth="1.2"
+                strokeLinejoin="round"
+            />
+
+            <path
+                d="M24 7 40 11.8V28C40 39.6 32.6 47 24 50.2 15.4 47 8 39.6 8 28V11.8L24 7Z"
+                stroke="#F4D9DF"
+                strokeOpacity="0.45"
+                strokeWidth="0.8"
+            />
+
+            <g
+                stroke="#FBEFF2"
+                strokeWidth="1.8"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+            >
+                <path d="M24 17 34 22.5V33.5L24 39 14 33.5V22.5L24 17Z" />
+                <path d="M14 22.5 24 28 34 22.5M24 28V39" />
+            </g>
+        </svg>
+    );
 }
 
 function ArrowDownIcon() {

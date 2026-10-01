@@ -2354,21 +2354,21 @@ function StatusBadge({
 
     const mapa = {
         ABERTO: {
-            bg: '#F5EBD6',
-            ink: '#8A6A1F',
-            dot: '#B08628',
+            bg: theme.statuses.EM_TRANSITO.bg,
+            ink: theme.statuses.EM_TRANSITO.ink,
+            dot: theme.statuses.EM_TRANSITO.dot,
             label: 'Aberto'
         },
         CANCELADO: {
-            bg: '#ECE8E3',
-            ink: '#625C55',
-            dot: '#777067',
+            bg: theme.statuses.CANCELADA.bg,
+            ink: theme.statuses.CANCELADA.ink,
+            dot: theme.statuses.CANCELADA.dot,
             label: 'Cancelado'
         },
         CONCLUIDO: {
-            bg: '#E7EFE3',
-            ink: '#3B5C3E',
-            dot: '#4B7A51',
+            bg: theme.statuses.ENTREGUE.bg,
+            ink: theme.statuses.ENTREGUE.ink,
+            dot: theme.statuses.ENTREGUE.dot,
             label: 'Concluído'
         }
     };
@@ -2628,9 +2628,9 @@ function getStyles(theme) {
             marginTop: '14px',
             padding: '11px 13px',
             borderRadius: '8px',
-            border: '1px solid #62392F',
-            backgroundColor: '#392420',
-            color: '#E6A391',
+            border: '1px solid #6E2A3C',
+            backgroundColor: '#3A1522',
+            color: '#F2A7B8',
             fontSize: '11px'
         },
 
@@ -2868,8 +2868,8 @@ function getStyles(theme) {
             display: 'inline-flex',
             padding: '4px 8px',
             borderRadius: '999px',
-            backgroundColor: '#392420',
-            color: '#E6A391',
+            backgroundColor: '#3A1522',
+            color: '#F2A7B8',
             fontSize: '9px',
             fontWeight: 700
         },

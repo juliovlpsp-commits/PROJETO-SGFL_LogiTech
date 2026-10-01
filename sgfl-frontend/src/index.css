@@ -1,12 +1,30 @@
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
   font: 16px/145% -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Valores iniciais (o useTheme.js atualiza conforme o modo escolhido) */
+  --bg: #14080C;
+  --surface: #1E0D14;
+  --surface-alt: #27121B;
+  --border: #3A1A25;
+  --border-strong: #55283A;
+  --ink: #F4E9EC;
+  --ink-soft: #B79AA3;
+  --accent: #B23A54;
+  --accent-ink: #FFF1F4;
 }
 
 * {
   box-sizing: border-box;
+  scrollbar-color: var(--border-strong) var(--bg);
+}
+
+html,
+body {
+  background-color: var(--bg);
+  color: var(--ink);
 }
 
 body {
@@ -15,4 +33,48 @@ body {
 
 #root {
   min-height: 100svh;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+::placeholder {
+  color: var(--ink-soft);
+  opacity: 0.7;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Scrollbar (Chrome/Edge) */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 8px;
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* Autofill do Chrome: sem isso o campo fica azul/amarelo claro */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px var(--surface-alt) inset;
+  -webkit-text-fill-color: var(--ink);
+  caret-color: var(--ink);
+  transition: background-color 9999s ease-out 0s;
+}
+
+/* Setas dos <select> e calendários nativos combinando com o tema escuro */
+select,
+input,
+textarea {
+  color-scheme: inherit;
 }

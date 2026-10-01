@@ -37,10 +37,56 @@ export default function Dashboard({ token, onLogout }) {
     const [mostrarRecursos, setMostrarRecursos] = useState(false);
 
     const {
-        theme,
+        theme: baseTheme,
         mode,
         toggle
     } = useTheme();
+
+    const theme = mode === 'dark'
+        ? {
+            ...baseTheme,
+            bg: '#14080C',
+            surface: 'rgba(30, 13, 20, 0.84)',
+            surfaceAlt: 'rgba(39, 18, 27, 0.76)',
+            border: 'rgba(244, 233, 236, 0.13)',
+            borderStrong: 'rgba(165, 69, 82, 0.48)',
+            ink: '#F4E9EC',
+            inkSoft: '#B79AA3',
+            accent: '#A54552',
+            accentInk: '#FFF1F4',
+            danger: '#D86A78',
+            backgroundImage:
+                'radial-gradient(circle at 12% 8%, rgba(165, 69, 82, 0.16), transparent 27%),' +
+                'radial-gradient(circle at 88% 22%, rgba(244, 233, 236, 0.045), transparent 25%),' +
+                'radial-gradient(circle, rgba(244, 233, 236, 0.035) 0.7px, transparent 0.8px),' +
+                'linear-gradient(135deg, #14080C 0%, #1B0A11 48%, #0E0508 100%)',
+            backgroundSize:
+                'auto, auto, 8px 8px, auto',
+            statuses: {
+                ...baseTheme.statuses,
+                PENDENTE: {
+                    bg: 'rgba(165, 69, 82, 0.12)',
+                    ink: '#D99AA3',
+                    dot: '#A54552'
+                },
+                EM_TRANSITO: {
+                    bg: 'rgba(194, 128, 57, 0.16)',
+                    ink: '#E6BD7B',
+                    dot: '#D6A04B'
+                },
+                ENTREGUE: {
+                    bg: 'rgba(79, 122, 88, 0.16)',
+                    ink: '#9FC4A6',
+                    dot: '#5D9466'
+                },
+                CANCELADA: {
+                    bg: 'rgba(142, 120, 128, 0.14)',
+                    ink: '#C9B3BA',
+                    dot: '#8E7880'
+                }
+            }
+        }
+        : baseTheme;
 
     const styles = getStyles(theme);
 
@@ -902,11 +948,24 @@ export default function Dashboard({ token, onLogout }) {
 
     return (
         <div
-            className="sgfl-page"
+            className={
+                mode === 'dark'
+                    ? 'sgfl-page sgfl-page-dark'
+                    : 'sgfl-page'
+            }
             style={
                 styles.page
             }
         >
+
+            {mode === 'dark' && (
+                <>
+                    <div className="sgfl-ambient sgfl-ambient-a" />
+                    <div className="sgfl-ambient sgfl-ambient-b" />
+                    <div className="sgfl-ambient sgfl-ambient-c" />
+                    <div className="sgfl-grid-overlay" />
+                </>
+            )}
 
             <div
                 style={
@@ -1852,30 +1911,131 @@ export default function Dashboard({ token, onLogout }) {
 
             <style>
                 {`
-
-                    .sgfl-page button {
-                        -webkit-backdrop-filter: blur(16px) saturate(160%);
-                        backdrop-filter: blur(16px) saturate(160%);
-                        -webkit-tap-highlight-color: transparent;
-                        will-change: transform, filter, box-shadow;
+                    .sgfl-page-dark {
+                        isolation: isolate;
                     }
 
-                    .sgfl-page button:not(:disabled):hover {
+                    .sgfl-page-dark .sgfl-ambient {
+                        position: absolute;
+                        border-radius: 999px;
+                        pointer-events: none;
+                        z-index: 0;
+                        filter: blur(46px);
+                        opacity: 0.56;
+                        mix-blend-mode: screen;
+                    }
+
+                    .sgfl-page-dark .sgfl-ambient-a {
+                        width: 390px;
+                        height: 390px;
+                        top: -120px;
+                        left: -100px;
+                        background: radial-gradient(circle, rgba(165, 69, 82, 0.34) 0%, rgba(165, 69, 82, 0) 72%);
+                    }
+
+                    .sgfl-page-dark .sgfl-ambient-b {
+                        width: 420px;
+                        height: 420px;
+                        top: 25%;
+                        right: -175px;
+                        background: radial-gradient(circle, rgba(188, 140, 129, 0.14) 0%, rgba(188, 140, 129, 0) 72%);
+                    }
+
+                    .sgfl-page-dark .sgfl-ambient-c {
+                        width: 360px;
+                        height: 360px;
+                        bottom: -145px;
+                        right: 20%;
+                        background: radial-gradient(circle, rgba(165, 69, 82, 0.18) 0%, rgba(165, 69, 82, 0) 74%);
+                    }
+
+                    .sgfl-page-dark .sgfl-grid-overlay {
+                        position: absolute;
+                        inset: 0;
+                        z-index: 0;
+                        pointer-events: none;
+                        opacity: 0.76;
+                        background-image:
+                            radial-gradient(circle, rgba(244,233,236,0.055) 0.7px, transparent 0.8px),
+                            linear-gradient(rgba(244,233,236,0.016) 1px, transparent 1px),
+                            linear-gradient(90deg, rgba(244,233,236,0.016) 1px, transparent 1px);
+                        background-size: 8px 8px, 54px 54px, 54px 54px;
+                        mask-image: linear-gradient(to bottom, rgba(0,0,0,0.72), transparent 92%);
+                        -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.72), transparent 92%);
+                    }
+
+                    .sgfl-page-dark button {
+                        position: relative;
+                        overflow: hidden;
+                        transition:
+                            transform 180ms ease,
+                            filter 180ms ease,
+                            box-shadow 180ms ease,
+                            border-color 180ms ease;
+                    }
+
+                    .sgfl-page-dark button::after {
+                        content: '';
+                        position: absolute;
+                        inset: 0;
+                        pointer-events: none;
+                        background: linear-gradient(
+                            115deg,
+                            transparent 12%,
+                            rgba(255,255,255,0.09) 46%,
+                            transparent 72%
+                        );
+                        opacity: 0.42;
+                        transform: translateX(-115%);
+                        transition: transform 460ms ease;
+                    }
+
+                    .sgfl-page-dark button:not(:disabled):hover {
                         transform: translateY(-1px);
-                        filter: brightness(1.08);
+                        filter: brightness(1.06);
                         box-shadow:
-                            inset 0 1px 0 rgba(255,255,255,0.14),
-                            0 10px 28px rgba(0,0,0,0.24);
+                            0 12px 34px rgba(85, 26, 36, 0.20),
+                            inset 0 1px 0 rgba(255,255,255,0.10);
                     }
 
-                    .sgfl-page button:not(:disabled):active {
+                    .sgfl-page-dark button:not(:disabled):hover::after {
+                        transform: translateX(115%);
+                    }
+
+                    .sgfl-page-dark button:not(:disabled):active {
                         transform: translateY(0) scale(0.985);
-                        filter: brightness(0.98);
                     }
 
-                    .sgfl-page button:not(:disabled):focus-visible {
-                        outline: 2px solid rgba(255,255,255,0.22);
-                        outline-offset: 2px;
+                    .sgfl-page-dark input,
+                    .sgfl-page-dark textarea,
+                    .sgfl-page-dark select {
+                        background-image:
+                            linear-gradient(
+                                135deg,
+                                rgba(60, 22, 34, 0.34),
+                                rgba(17, 11, 10, 0.16)
+                            );
+                        backdrop-filter: blur(18px) saturate(115%);
+                        -webkit-backdrop-filter: blur(18px) saturate(115%);
+                        box-shadow: inset 0 1px 0 rgba(255,255,255,0.035);
+                    }
+
+                    .sgfl-page-dark .sgfl-blur-btn {
+                        background-image:
+                            linear-gradient(
+                                135deg,
+                                rgba(165,69,82,0.15),
+                                rgba(244,233,236,0.03)
+                            );
+                        backdrop-filter: blur(22px) saturate(120%);
+                        -webkit-backdrop-filter: blur(22px) saturate(120%);
+                        box-shadow:
+                            inset 0 1px 0 rgba(255,255,255,0.09),
+                            0 10px 30px rgba(0,0,0,0.20);
+                    }
+
+                    .sgfl-page-dark .sgfl-blur-btn:hover {
+                        border-color: rgba(165,69,82,0.56) !important;
                     }
 
                     .sgfl-table-wrap {
@@ -2246,8 +2406,11 @@ function getStyles(theme) {
     return {
         page: {
             minHeight: '100vh',
+            position: 'relative',
+            overflow: 'hidden',
             backgroundColor: theme.bg,
-            backgroundImage: 'radial-gradient(circle at 20% 8%, rgba(255,255,255,0.035), transparent 24%), radial-gradient(circle at 86% 72%, rgba(226,126,86,0.028), transparent 28%)',
+            backgroundImage: theme.backgroundImage,
+            backgroundSize: theme.backgroundSize || 'auto',
             color: theme.ink,
             fontFamily:
                 "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
@@ -2257,7 +2420,9 @@ function getStyles(theme) {
         shell: {
             width: '100%',
             maxWidth: '1500px',
-            margin: '0 auto'
+            margin: '0 auto',
+            position: 'relative',
+            zIndex: 2
         },
 
         header: {
@@ -2277,7 +2442,8 @@ function getStyles(theme) {
         brandIcon: {
             width: '38px',
             height: '38px',
-            borderRadius: '10px',
+            borderRadius: '14px',
+            backgroundImage: 'linear-gradient(135deg, #A54552 0%, #7A2D38 52%, #6E202D 100%)',
             backgroundColor: theme.accent,
             color: theme.accentInk,
             display: 'flex',
@@ -2306,35 +2472,34 @@ function getStyles(theme) {
         },
 
         btnResources: {
-            backdropFilter: 'blur(16px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
-            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             display: 'inline-flex',
             alignItems: 'center',
             gap: '7px',
             padding: '9px 13px',
-            borderRadius: '8px',
+            borderRadius: '12px',
             border:
                 `1px solid ${theme.border}`,
-            backgroundColor: 'rgba(255,255,255,0.075)',
+            backgroundColor: theme.surface,
+            backgroundImage: 'linear-gradient(135deg, rgba(165, 69, 82, 0.24), rgba(110, 32, 45, 0.10))',
+            backdropFilter: 'blur(24px) saturate(165%)',
+            WebkitBackdropFilter: 'blur(24px) saturate(165%)',
             color: theme.ink,
             fontSize: '12px',
             fontWeight: 700,
-            cursor: 'pointer'
+            cursor: 'pointer',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.10), 0 10px 30px rgba(0, 0, 0, 0.22)'
         },
 
         themeToggle: {
-            backdropFilter: 'blur(16px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
-            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             width: '36px',
             height: '36px',
-            borderRadius: '8px',
+            borderRadius: '12px',
             border:
                 `1px solid ${theme.border}`,
-            backgroundColor: 'rgba(255,255,255,0.075)',
+            backgroundColor: theme.surface,
+            backgroundImage: 'linear-gradient(135deg, rgba(165, 69, 82, 0.20), rgba(110, 32, 45, 0.08))',
+            backdropFilter: 'blur(24px) saturate(165%)',
+            WebkitBackdropFilter: 'blur(24px) saturate(165%)',
             color: theme.ink,
             display: 'flex',
             alignItems: 'center',
@@ -2343,19 +2508,19 @@ function getStyles(theme) {
         },
 
         btnLogout: {
-            backdropFilter: 'blur(16px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
-            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             padding: '9px 13px',
-            borderRadius: '8px',
+            borderRadius: '12px',
             border:
                 `1px solid ${theme.border}`,
-            backgroundColor: 'rgba(255,255,255,0.045)',
+            backgroundColor: 'rgba(165, 69, 82, 0.10)',
+            backgroundImage: 'linear-gradient(135deg, rgba(190, 70, 95, 0.20), rgba(110, 32, 45, 0.10))',
+            backdropFilter: 'blur(24px) saturate(165%)',
+            WebkitBackdropFilter: 'blur(24px) saturate(165%)',
             color: theme.danger,
             fontSize: '12px',
             fontWeight: 700,
-            cursor: 'pointer'
+            cursor: 'pointer',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 10px 28px rgba(0, 0, 0, 0.20)'
         },
 
         alertaErro: {
@@ -2407,9 +2572,12 @@ function getStyles(theme) {
         card: {
             backgroundColor:
             theme.surface,
+            backgroundImage: 'linear-gradient(145deg, rgba(60, 22, 34, 0.42), rgba(20, 8, 12, 0.24))',
+            backdropFilter: 'blur(22px) saturate(150%)',
+            WebkitBackdropFilter: 'blur(22px) saturate(150%)',
             border:
                 `1px solid ${theme.border}`,
-            borderRadius: '12px',
+            borderRadius: '18px',
             padding: '20px'
         },
 
@@ -2511,15 +2679,14 @@ function getStyles(theme) {
         },
 
         btnSubmit: {
-            backdropFilter: 'blur(16px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
-            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             width: '100%',
             padding: '11px',
-            border: 'none',
-            borderRadius: '8px',
-            backgroundColor: 'rgba(226,126,86,0.72)',
+            border: '1px solid rgba(200, 90, 110, 0.60)',
+            borderRadius: '12px',
+            backgroundColor: theme.accent,
+            backgroundImage: 'linear-gradient(135deg, #A54552 0%, #8D3F4B 52%, #6E202D 100%)',
+            backdropFilter: 'blur(26px) saturate(170%)',
+            WebkitBackdropFilter: 'blur(26px) saturate(170%)',
             color: theme.accentInk,
             fontSize: '13px',
             fontWeight: 700,
@@ -2527,14 +2694,11 @@ function getStyles(theme) {
         },
 
         btnDisabledLarge: {
-            backdropFilter: 'blur(16px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 4px 12px rgba(0,0,0,0.10)',
             width: '100%',
             padding: '11px',
             border: 'none',
             borderRadius: '8px',
-            backgroundColor: 'rgba(255,255,255,0.035)',
+            backgroundColor: theme.borderStrong,
             color: theme.inkSoft,
             fontSize: '13px',
             fontWeight: 700,
@@ -2557,18 +2721,15 @@ function getStyles(theme) {
         },
 
         refreshButton: {
-            backdropFilter: 'blur(16px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
-            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             display: 'inline-flex',
             alignItems: 'center',
             gap: '6px',
             padding: '8px 10px',
-            borderRadius: '8px',
+            borderRadius: '12px',
             border:
                 `1px solid ${theme.border}`,
-            backgroundColor: 'rgba(255,255,255,0.075)',
+            backgroundColor:
+            theme.surfaceAlt,
             color:
             theme.ink,
             fontSize: '11px',
@@ -2627,14 +2788,13 @@ function getStyles(theme) {
         },
 
         btnPrimary: {
-            backdropFilter: 'blur(16px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
-            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             padding: '7px 10px',
-            border: 'none',
-            borderRadius: '7px',
-            backgroundColor: 'rgba(226,126,86,0.72)',
+            border: '1px solid rgba(200, 90, 110, 0.60)',
+            borderRadius: '10px',
+            backgroundColor: theme.accent,
+            backgroundImage: 'linear-gradient(135deg, rgba(178, 58, 84, 0.96), rgba(122, 31, 43, 0.92))',
+            backdropFilter: 'blur(22px) saturate(170%)',
+            WebkitBackdropFilter: 'blur(22px) saturate(170%)',
             color: theme.accentInk,
             fontSize: '11px',
             fontWeight: 700,
@@ -2642,15 +2802,14 @@ function getStyles(theme) {
         },
 
         btnCancel: {
-            backdropFilter: 'blur(16px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
-            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             padding: '7px 10px',
-            borderRadius: '7px',
+            borderRadius: '10px',
             border:
-                `1px solid ${theme.border}`,
-            backgroundColor: 'rgba(255,255,255,0.05)',
+                `1px solid rgba(165, 69, 82, 0.38)`,
+            backgroundColor: 'rgba(165, 69, 82, 0.07)',
+            backgroundImage: 'linear-gradient(135deg, rgba(190, 70, 95, 0.16), rgba(110, 32, 45, 0.08))',
+            backdropFilter: 'blur(22px) saturate(170%)',
+            WebkitBackdropFilter: 'blur(22px) saturate(170%)',
             color: theme.danger,
             fontSize: '11px',
             fontWeight: 700,
@@ -2658,14 +2817,14 @@ function getStyles(theme) {
         },
 
         btnFinalize: {
-            backdropFilter: 'blur(16px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
-            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             padding: '7px 10px',
-            border: 'none',
-            borderRadius: '7px',
-            backgroundColor: 'rgba(76,130,85,0.70)',
+            border: '1px solid rgba(230, 189, 123, 0.55)',
+            borderRadius: '10px',
+            backgroundColor:
+            theme.statuses.EM_TRANSITO.dot,
+            backgroundImage: 'linear-gradient(135deg, rgba(176, 120, 48, 0.85), rgba(122, 76, 30, 0.88))',
+            backdropFilter: 'blur(22px) saturate(170%)',
+            WebkitBackdropFilter: 'blur(22px) saturate(170%)',
             color: '#FFFFFF',
             fontSize: '11px',
             fontWeight: 700,
@@ -2673,15 +2832,14 @@ function getStyles(theme) {
         },
 
         btnDelete: {
-            backdropFilter: 'blur(16px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
-            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             padding: '7px 10px',
-            borderRadius: '7px',
+            borderRadius: '10px',
             border:
-                `1px solid ${theme.border}`,
-            backgroundColor: 'rgba(255,255,255,0.045)',
+                `1px solid rgba(165, 69, 82, 0.38)`,
+            backgroundColor: 'rgba(165, 69, 82, 0.07)',
+            backgroundImage: 'linear-gradient(135deg, rgba(165, 69, 82, 0.12), rgba(110, 32, 45, 0.10))',
+            backdropFilter: 'blur(22px) saturate(170%)',
+            WebkitBackdropFilter: 'blur(22px) saturate(170%)',
             color: theme.danger,
             fontSize: '11px',
             fontWeight: 700,
@@ -2689,14 +2847,15 @@ function getStyles(theme) {
         },
 
         btnDisabled: {
-            backdropFilter: 'blur(16px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 4px 12px rgba(0,0,0,0.10)',
             padding: '7px 10px',
-            borderRadius: '7px',
+            borderRadius: '8px',
             border:
                 `1px solid ${theme.border}`,
-            backgroundColor: 'rgba(255,255,255,0.035)',
+            backgroundColor:
+                'rgba(150, 110, 120, 0.14)',
+            backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0.04), rgba(110, 50, 65, 0.10))',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
             color: theme.inkSoft,
             fontSize: '11px',
             fontWeight: 700,
@@ -2722,15 +2881,12 @@ function getStyles(theme) {
         },
 
         pageBtn: {
-            backdropFilter: 'blur(16px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
-            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             padding: '8px 12px',
-            borderRadius: '8px',
+            borderRadius: '10px',
             border:
                 `1px solid ${theme.border}`,
-            backgroundColor: 'rgba(255,255,255,0.06)',
+            backgroundColor:
+            theme.surfaceAlt,
             color: theme.ink,
             fontSize: '12px',
             fontWeight: 600,
@@ -2759,6 +2915,9 @@ function getStyles(theme) {
             maxWidth: '500px',
             backgroundColor:
             theme.surface,
+            backgroundImage: 'linear-gradient(145deg, rgba(46, 18, 28, 0.90), rgba(20, 8, 12, 0.86))',
+            backdropFilter: 'blur(28px) saturate(155%)',
+            WebkitBackdropFilter: 'blur(28px) saturate(155%)',
             border:
                 `1px solid ${theme.border}`,
             borderRadius: '14px',
@@ -2790,16 +2949,15 @@ function getStyles(theme) {
         },
 
         modalClose: {
-            backdropFilter: 'blur(16px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
-            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             width: '33px',
             height: '33px',
-            borderRadius: '8px',
+            borderRadius: '12px',
             border:
-                `1px solid ${theme.border}`,
-            backgroundColor: 'rgba(255,255,255,0.06)',
+                `1px solid ${theme.borderStrong}`,
+            backgroundColor: 'rgba(46, 18, 28, 0.60)',
+            backgroundImage: 'linear-gradient(135deg, rgba(165, 69, 82, 0.20), rgba(110, 32, 45, 0.10))',
+            backdropFilter: 'blur(20px) saturate(170%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(170%)',
             color: theme.ink,
             fontSize: '21px',
             cursor: 'pointer'
@@ -2813,15 +2971,14 @@ function getStyles(theme) {
         },
 
         btnSecondary: {
-            backdropFilter: 'blur(16px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.11), 0 8px 22px rgba(0,0,0,0.18)',
-            transition: 'transform 0.18s ease, filter 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease',
             padding: '9px 13px',
-            borderRadius: '8px',
+            borderRadius: '9px',
             border:
-                `1px solid ${theme.border}`,
-            backgroundColor: 'rgba(255,255,255,0.06)',
+                `1px solid ${theme.borderStrong}`,
+            backgroundColor: 'rgba(46, 18, 28, 0.58)',
+            backgroundImage: 'linear-gradient(135deg, rgba(165, 69, 82, 0.16), rgba(110, 32, 45, 0.07))',
+            backdropFilter: 'blur(20px) saturate(165%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(165%)',
             color: theme.ink,
             fontSize: '12px',
             fontWeight: 600,

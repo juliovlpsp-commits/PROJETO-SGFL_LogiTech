@@ -1,77 +1,43 @@
-export const lightTheme = {
-    bg: '#F6F1E9',
-    surface: '#FFFFFF',
-    surfaceAlt: '#FBF7F0',
-    border: '#E4DDCF',
-    borderStrong: '#DFD7C6',
-    ink: '#2B2924',
-    inkSoft: '#6B655C',
-    accent: '#C1602F',
-    accentInk: '#FFF9F2',
-    danger: '#B34632',
+// src/theme.js  -  Tema "vinho escuro" do SGFL
+// Todas as telas (Login, Dashboard, Gerenciar recursos) leem as cores daqui.
+
+export const darkTheme = {
+    bg: '#14080C',          // fundo da página (quase preto, puxado pro vinho)
+    surface: '#1E0D14',     // cartões e painéis
+    surfaceAlt: '#27121B',  // campos de formulário, linhas alternadas
+    border: '#3A1A25',
+    borderStrong: '#55283A',
+    ink: '#F4E9EC',         // texto principal
+    inkSoft: '#B79AA3',     // texto secundário
+    accent: '#A54552',      // botões e destaques (vinho)
+    accentInk: '#FFF1F4',   // texto sobre o accent
+    danger: '#F0A3B2',
 
     statuses: {
-        PENDENTE: {
-            bg: '#F6E4DD',
-            ink: '#8A3220',
-            dot: '#B34632'
-        },
-
-        EM_TRANSITO: {
-            bg: '#F5EBD6',
-            ink: '#8A6A1F',
-            dot: '#B08628'
-        },
-
-        ENTREGUE: {
-            bg: '#E7EFE3',
-            ink: '#3B5C3E',
-            dot: '#4B7A51'
-        },
-
-        CANCELADA: {
-            bg: '#ECE8E3',
-            ink: '#625C55',
-            dot: '#777067'
-        }
+        PENDENTE:    { bg: '#3A1522', ink: '#F2A7B8', dot: '#D6455F' },
+        EM_TRANSITO: { bg: '#3A2A18', ink: '#E6BE7A', dot: '#E0B060' },
+        ENTREGUE:    { bg: '#1F3326', ink: '#8FD0A0', dot: '#5FB878' },
+        CANCELADA:   { bg: '#2E2227', ink: '#C9B3BA', dot: '#8E7880' }
     }
 };
 
-export const darkTheme = {
-    bg: '#262624',
-    surface: '#2D2C2A',
-    surfaceAlt: '#333230',
-    border: '#3E3D39',
-    borderStrong: '#4A4842',
-    ink: '#F5F4EF',
-    inkSoft: '#A8A29E',
-    accent: '#D97757',
-    accentInk: '#251A12',
-    danger: '#E2A793',
+// Modo claro (botão do sol): também em tons de vinho, para não destoar.
+export const lightTheme = {
+    bg: '#F7ECEF',
+    surface: '#FFFFFF',
+    surfaceAlt: '#FBF3F5',
+    border: '#E8D3D9',
+    borderStrong: '#D9B8C2',
+    ink: '#2A1219',
+    inkSoft: '#7A5A64',
+    accent: '#8E2A40',
+    accentInk: '#FFF1F4',
+    danger: '#A12A42',
 
     statuses: {
-        PENDENTE: {
-            bg: '#3A2A25',
-            ink: '#E2A793',
-            dot: '#C96A4E'
-        },
-
-        EM_TRANSITO: {
-            bg: '#362E20',
-            ink: '#D9B36B',
-            dot: '#D9B36B'
-        },
-
-        ENTREGUE: {
-            bg: '#25322A',
-            ink: '#8FBF95',
-            dot: '#6FA377'
-        },
-
-        CANCELADA: {
-            bg: '#363431',
-            ink: '#C5BFB7',
-            dot: '#8A847C'
-        }
+        PENDENTE:    { bg: '#F6DDE3', ink: '#8A2036', dot: '#B23A54' },
+        EM_TRANSITO: { bg: '#F5EBD6', ink: '#8A6A1F', dot: '#B08628' },
+        ENTREGUE:    { bg: '#E3EFE6', ink: '#2F5A3B', dot: '#4B7A51' },
+        CANCELADA:   { bg: '#EDE4E7', ink: '#6A5A60', dot: '#8E7880' }
     }
 };

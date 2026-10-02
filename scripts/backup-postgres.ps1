@@ -1,5 +1,6 @@
 param(
-    [string]$OutputDirectory = (Join-Path $PSScriptRoot "..\backups")
+    [string]$OutputDirectory = (Join-Path $PSScriptRoot "..\backups"),
+    [string]$ExternalDirectory = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -44,3 +45,21 @@ try {
 $hash = (Get-FileHash -LiteralPath $backupFile -Algorithm SHA256).Hash
 Write-Output "Backup criado: $backupFile"
 Write-Output "SHA-256: $hash"
+
+if (-not [string]::IsNullOrWhiteSpace($ExternalDirectory)) {
+    $externalPath = [System.IO.Path]::GetFullPath($ExternalDirectory)
+    $externalComparisonPath = $externalPath.TrimEnd('\', '/')
+    $outputComparisonPath = $outputPath.TrimEnd('\', '/')
+    if ([string]::Equals($externalComparisonPath, $outputComparisonPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw 'O destino externo precisa ser diferente da pasta local de backups.'
+    }
+    New-Item -ItemType Directory -Path $externalPath -Force | Out-Null
+    $externalFile = Join-Path $externalPath ([System.IO.Path]::GetFileName($backupFile))
+    Copy-Item -LiteralPath $backupFile -Destination $externalFile
+    $externalHash = (Get-FileHash -LiteralPath $externalFile -Algorithm SHA256).Hash
+    if ($externalHash -ne $hash) {
+        Remove-Item -LiteralPath $externalFile -Force -ErrorAction SilentlyContinue
+        throw 'A cópia externa não passou na verificação SHA-256.'
+    }
+    Write-Output "Cópia externa verificada: $externalFile"
+}

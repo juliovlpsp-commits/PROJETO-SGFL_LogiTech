@@ -21,6 +21,8 @@ Sistema web com API REST em Spring Boot e frontend React para gestão de frota, 
 - Tema claro/escuro persistido, layout responsivo
   **Infraestrutura**
 - GitHub Actions: roda a suíte de testes a cada `push`/pull request
+- Playwright: valida os principais fluxos no navegador com contrato de API simulado
+- k6: roteiro de carga somente de leitura para API de entregas
 ---
 
 ## Arquitetura
@@ -178,6 +180,19 @@ docker compose down
 Para métricas e alertas locais, inicie o Prometheus com `docker compose --profile observability up -d`; o painel fica em `http://localhost:9090`. A porta de gerenciamento do backend (8081) permanece apenas na rede Docker. Health, readiness/liveness e métricas ficam nessa porta.
 
 Procedimentos de backup, restauração e operação estão em [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
+
+Para publicar os containers usando PostgreSQL e Redis gerenciados, consulte [`docker-compose.production.yml`](docker-compose.production.yml) e a seção de deploy em [`docs/OPERATIONS.md`](docs/OPERATIONS.md). O domínio/TLS e os segredos ficam no provedor de hospedagem.
+
+### Testes ponta a ponta e carga
+
+```bash
+cd sgfl-frontend
+npm ci
+npx playwright install chromium
+npm run test:e2e
+```
+
+Os testes de navegador isolam a interface de uma API falsa para serem reproduzíveis na CI. Os testes do backend continuam cobrindo integração e regras de autorização. O teste de carga k6 e a carga sintética controlada estão em `performance/`; veja o roteiro e os limites em `docs/OPERATIONS.md`.
 
 ---
 

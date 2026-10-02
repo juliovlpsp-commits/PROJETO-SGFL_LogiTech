@@ -1,7 +1,7 @@
 # ==========================================
 # Estágio 1: Build da aplicação Spring Boot
 # ==========================================
-FROM maven:3.9-eclipse-temurin-17-alpine AS builder
+FROM maven:3-eclipse-temurin-24-alpine AS builder
 WORKDIR /build
 
 # Cache de dependências Maven

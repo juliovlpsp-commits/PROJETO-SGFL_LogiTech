@@ -5,6 +5,10 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      jjwt:
+        patterns:
+          - "io.jsonwebtoken:*"
 
   - package-ecosystem: npm
     directory: "/sgfl-frontend"

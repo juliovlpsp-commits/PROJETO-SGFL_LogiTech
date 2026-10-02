@@ -164,7 +164,7 @@ docker compose up --build -d
 
 - **Frontend (Web)**: [http://localhost:5173](http://localhost:5173) ou [http://localhost](http://localhost)
 - **Backend (API)**: [http://localhost:8080/api](http://localhost:8080/api)
-- **PostgreSQL**: `localhost:5432` (database `sgfl_db`, user `postgres`, senha definida por você em `POSTGRES_PASSWORD`)
+- **PostgreSQL Docker**: `localhost:5433` por padrão (database `sgfl_db`, user `postgres`; altere com `POSTGRES_HOST_PORT` se precisar)
 - **Redis**: privado na rede do Compose; os contadores compartilhados de rate limit não são expostos no host
 
 Para visualizar os logs:

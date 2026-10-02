@@ -1,7 +1,6 @@
 package com.logitech.sgfl.controller;
 
 import com.logitech.sgfl.dto.LoginRequest;
-import com.logitech.sgfl.dto.LoginResponse;
 import com.logitech.sgfl.dto.RegistroRequest;
 import com.logitech.sgfl.enums.Perfil;
 import com.logitech.sgfl.me.Usuario;
@@ -9,8 +8,11 @@ import com.logitech.sgfl.repository.UsuarioRepository;
 import com.logitech.sgfl.security.JwtService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -27,6 +29,12 @@ public class AuthController {
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @org.springframework.beans.factory.annotation.Value("${jwt.expiration-ms:86400000}")
+    private long expirationMs;
+
+    @org.springframework.beans.factory.annotation.Value("${app.cookie.secure:false}")
+    private boolean cookieSecure;
+
     public AuthController(
             AuthenticationManager authenticationManager,
             UserDetailsService userDetailsService,
@@ -41,15 +49,9 @@ public class AuthController {
         this.passwordEncoder = passwordEncoder;
     }
 
-    /**
-     * Realiza a autenticação do usuário e devolve um JWT.
-     *
-     * O campo username do LoginRequest é utilizado para o login.
-     * No projeto atual, o UserDetailsService é responsável por
-     * localizar o usuário.
-     */
+    /** Autentica e grava o JWT em um cookie HttpOnly. */
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(
+    public ResponseEntity<Void> login(
             @Valid @RequestBody LoginRequest request
     ) {
 
@@ -68,9 +70,33 @@ public class AuthController {
         String token =
                 jwtService.generateToken(userDetails);
 
-        return ResponseEntity.ok(
-                new LoginResponse(token)
-        );
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, criarCookie(token, expirationMs).toString())
+                .build();
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout() {
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, criarCookie("", 0).toString())
+                .build();
+    }
+
+    @GetMapping("/session")
+    public ResponseEntity<Void> session(Authentication authentication) {
+        return authentication != null && authentication.isAuthenticated()
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+
+    private ResponseCookie criarCookie(String token, long maxAgeMs) {
+        return ResponseCookie.from("sgfl_session", token)
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .sameSite("Lax")
+                .path("/api")
+                .maxAge(Math.max(0, maxAgeMs / 1000))
+                .build();
     }
 
     /**

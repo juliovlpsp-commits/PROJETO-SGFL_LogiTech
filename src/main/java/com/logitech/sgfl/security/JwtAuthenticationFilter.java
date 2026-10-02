@@ -29,14 +29,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
 
         final String authHeader = request.getHeader("Authorization");
+        String jwt = null;
 
-        // Valida se o cabeçalho existe, começa com "Bearer " e tem conteúdo após "Bearer "
-        if (authHeader == null || !authHeader.startsWith("Bearer ") || authHeader.length() <= 7) {
+        // Mantém suporte ao bearer para integrações e clientes não browser.
+        if (authHeader != null && authHeader.startsWith("Bearer ") && authHeader.length() > 7) {
+            jwt = authHeader.substring(7).trim();
+        }
+
+        // O frontend web usa cookie HttpOnly para que o token não fique acessível ao JavaScript.
+        if ((jwt == null || jwt.isBlank()) && request.getCookies() != null) {
+            for (jakarta.servlet.http.Cookie cookie : request.getCookies()) {
+                if ("sgfl_session".equals(cookie.getName())) {
+                    jwt = cookie.getValue();
+                    break;
+                }
+            }
+        }
+
+        if (jwt == null) {
             filterChain.doFilter(request, response);
             return;
         }
-
-        final String jwt = authHeader.substring(7).trim();
 
         // Evita tentar validar strings inválidas como "undefined" ou "null"
         if (jwt.isEmpty() || "undefined".equalsIgnoreCase(jwt) || "null".equalsIgnoreCase(jwt)) {

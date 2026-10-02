@@ -1,7 +1,6 @@
 package com.logitech.sgfl.integration;
 
 import com.logitech.sgfl.dto.LoginRequest;
-import com.logitech.sgfl.dto.LoginResponse;
 import com.logitech.sgfl.dto.RegistroRequest;
 import com.logitech.sgfl.enums.Perfil;
 import com.logitech.sgfl.me.Usuario;
@@ -58,7 +57,7 @@ class AutenticacaoIntegrationTest {
     }
 
     @Test
-    void deveRecusarAcessoARotaProtegidaSemToken() {
+    void deveRecusarAcessoARotaProtegidaSemSessao() {
         ResponseEntity<String> resposta = restTemplate.getForEntity("/api/entregas", String.class);
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
@@ -78,10 +77,10 @@ class AutenticacaoIntegrationTest {
     @Test
     void operadorNaoPodeExcluirEntrega() {
         criarUsuario("operador@exemplo.com", SENHA, Perfil.ROLE_OPERADOR);
-        String token = fazerLogin("operador@exemplo.com", SENHA);
+        String cookie = fazerLogin("operador@exemplo.com", SENHA);
 
         ResponseEntity<String> resposta = restTemplate.exchange(
-                "/api/entregas/999", HttpMethod.DELETE, new HttpEntity<>(comToken(token)), String.class);
+                "/api/entregas/999", HttpMethod.DELETE, new HttpEntity<>(comCookie(cookie)), String.class);
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
@@ -89,9 +88,9 @@ class AutenticacaoIntegrationTest {
     @Test
     void operadorNaoPodeCadastrarMotorista() {
         criarUsuario("operador@exemplo.com", SENHA, Perfil.ROLE_OPERADOR);
-        String token = fazerLogin("operador@exemplo.com", SENHA);
+        String cookie = fazerLogin("operador@exemplo.com", SENHA);
 
-        HttpHeaders headers = comToken(token);
+        HttpHeaders headers = comCookie(cookie);
         headers.setContentType(MediaType.APPLICATION_JSON);
 
         ResponseEntity<String> resposta = restTemplate.exchange(
@@ -105,21 +104,21 @@ class AutenticacaoIntegrationTest {
     @Test
     void operadorPodeListarEntregas() {
         criarUsuario("operador@exemplo.com", SENHA, Perfil.ROLE_OPERADOR);
-        String token = fazerLogin("operador@exemplo.com", SENHA);
+        String cookie = fazerLogin("operador@exemplo.com", SENHA);
 
         ResponseEntity<String> resposta = restTemplate.exchange(
-                "/api/entregas", HttpMethod.GET, new HttpEntity<>(comToken(token)), String.class);
+                "/api/entregas", HttpMethod.GET, new HttpEntity<>(comCookie(cookie)), String.class);
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 
     @Test
     void adminPassaPelaAutorizacaoDeExclusao() {
-        String token = fazerLogin(EMAIL, SENHA);
+        String cookie = fazerLogin(EMAIL, SENHA);
 
         // A entrega 999 não existe: passar pela autorização e chegar no 404 prova que não houve 403.
         ResponseEntity<String> resposta = restTemplate.exchange(
-                "/api/entregas/999", HttpMethod.DELETE, new HttpEntity<>(comToken(token)), String.class);
+                "/api/entregas/999", HttpMethod.DELETE, new HttpEntity<>(comCookie(cookie)), String.class);
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
@@ -163,27 +162,33 @@ class AutenticacaoIntegrationTest {
     }
 
     private String fazerLogin(String email, String senha) {
-        ResponseEntity<LoginResponse> resposta = restTemplate.postForEntity(
-                "/api/auth/login", new LoginRequest(email, senha), LoginResponse.class);
-        return resposta.getBody().getToken();
+        ResponseEntity<Void> resposta = restTemplate.postForEntity(
+                "/api/auth/login", new LoginRequest(email, senha), Void.class);
+        return cookieDaResposta(resposta);
     }
 
-    private HttpHeaders comToken(String token) {
+    private HttpHeaders comCookie(String cookie) {
         HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(token);
+        headers.add(HttpHeaders.COOKIE, cookie);
         return headers;
     }
 
+    private String cookieDaResposta(ResponseEntity<?> resposta) {
+        String setCookie = resposta.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+        assertThat(setCookie).isNotBlank();
+        return setCookie.split(";", 2)[0];
+    }
+
     @Test
-    void deveFazerLoginComEmailERetornarTokenValido() {
+    void deveFazerLoginComEmailEConfigurarCookieSeguro() {
         LoginRequest request = new LoginRequest(EMAIL, SENHA);
 
-        ResponseEntity<LoginResponse> resposta =
-                restTemplate.postForEntity("/api/auth/login", request, LoginResponse.class);
+        ResponseEntity<Void> resposta =
+                restTemplate.postForEntity("/api/auth/login", request, Void.class);
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(resposta.getBody()).isNotNull();
-        assertThat(resposta.getBody().getToken()).isNotBlank();
+        assertThat(resposta.getHeaders().getFirst(HttpHeaders.SET_COOKIE))
+                .contains("HttpOnly", "SameSite=Lax", "Path=/api");
     }
 
     @Test
@@ -197,14 +202,12 @@ class AutenticacaoIntegrationTest {
     }
 
     @Test
-    void deveAcessarRotaProtegidaUsandoOTokenDoLogin() {
+    void deveAcessarRotaProtegidaUsandoCookieDoLogin() {
         LoginRequest loginRequest = new LoginRequest(EMAIL, SENHA);
-        ResponseEntity<LoginResponse> loginResposta =
-                restTemplate.postForEntity("/api/auth/login", loginRequest, LoginResponse.class);
-        String token = loginResposta.getBody().getToken();
+        ResponseEntity<Void> loginResposta =
+                restTemplate.postForEntity("/api/auth/login", loginRequest, Void.class);
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(token);
+        HttpHeaders headers = comCookie(cookieDaResposta(loginResposta));
         HttpEntity<Void> entity = new HttpEntity<>(headers);
 
         ResponseEntity<String> resposta =

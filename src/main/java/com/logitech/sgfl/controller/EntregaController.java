@@ -1,6 +1,7 @@
 package com.logitech.sgfl.controller;
 
 import com.logitech.sgfl.dto.EntregaRequest;
+import com.logitech.sgfl.dto.EntregaResponse;
 import com.logitech.sgfl.dto.StatusUpdateRequest;
 import com.logitech.sgfl.enums.StatusEntrega;
 import com.logitech.sgfl.exceptions.RecursoNaoEncontradoException;
@@ -38,7 +39,7 @@ public class EntregaController {
      * Lista entregas de forma paginada.
      */
     @GetMapping
-    public Page<Entrega> listar(
+    public Page<EntregaResponse> listar(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "" + TAMANHO_PAGINA_PADRAO) int size
     ) {
@@ -55,7 +56,7 @@ public class EntregaController {
                         Sort.by("id").ascending()
                 );
 
-        return entregaRepository.findAll(pageable);
+        return entregaRepository.findAll(pageable).map(EntregaResponse::from);
     }
 
     /**
@@ -66,7 +67,7 @@ public class EntregaController {
      * ENTREGUE ou CANCELADA.
      */
     @PostMapping
-    public ResponseEntity<Entrega> criarEntrega(
+    public ResponseEntity<EntregaResponse> criarEntrega(
             @Valid @RequestBody EntregaRequest request
     ) {
         if (request.getStatus() != StatusEntrega.PENDENTE) {
@@ -83,9 +84,7 @@ public class EntregaController {
         entrega.setPesoCargaKg(request.getPesoCargaKg());
         entrega.setStatus(StatusEntrega.PENDENTE);
 
-        return ResponseEntity.ok(
-                entregaRepository.save(entrega)
-        );
+        return ResponseEntity.ok(EntregaResponse.from(entregaRepository.save(entrega)));
     }
 
     /**
@@ -95,17 +94,17 @@ public class EntregaController {
      * Se a alocação for válida, a entrega muda para EM_TRANSITO.
      */
     @PutMapping("/{id}/alocar")
-    public ResponseEntity<Entrega> alocar(
+    public ResponseEntity<EntregaResponse> alocar(
             @PathVariable Long id,
             @RequestParam Long veiculoId,
             @RequestParam Long motoristaId
     ) {
         return ResponseEntity.ok(
-                servicoGerenciamento.alocarEntrega(
+                EntregaResponse.from(servicoGerenciamento.alocarEntrega(
                         id,
                         veiculoId,
                         motoristaId
-                )
+                ))
         );
     }
 
@@ -116,12 +115,10 @@ public class EntregaController {
      * e possua veículo e motorista alocados.
      */
     @PutMapping("/{id}/finalizar")
-    public ResponseEntity<Entrega> finalizar(
+    public ResponseEntity<EntregaResponse> finalizar(
             @PathVariable Long id
     ) {
-        return ResponseEntity.ok(
-                servicoGerenciamento.finalizarEntrega(id)
-        );
+        return ResponseEntity.ok(EntregaResponse.from(servicoGerenciamento.finalizarEntrega(id)));
     }
 
     /**
@@ -131,15 +128,15 @@ public class EntregaController {
      * A decisão fica centralizada no serviço.
      */
     @PatchMapping("/{id}/status")
-    public ResponseEntity<Entrega> atualizarStatus(
+    public ResponseEntity<EntregaResponse> atualizarStatus(
             @PathVariable Long id,
             @Valid @RequestBody StatusUpdateRequest request
     ) {
         return ResponseEntity.ok(
-                servicoGerenciamento.atualizarStatus(
+                EntregaResponse.from(servicoGerenciamento.atualizarStatus(
                         id,
                         request.getStatus()
-                )
+                ))
         );
     }
 

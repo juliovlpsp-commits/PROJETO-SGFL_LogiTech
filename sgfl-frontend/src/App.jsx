@@ -2,43 +2,32 @@ import { useEffect, useState } from 'react';
 import Login from './Login';
 import Dashboard from './Dashboard';
 import GestaoComercial from './GestaoComercial';
+import api from './api';
 
 export default function App() {
-    const [token, setToken] = useState(() => {
-        const savedToken =
-            localStorage.getItem('token');
+    const [autenticado, setAutenticado] = useState(false);
 
-        return (
-            savedToken &&
-            savedToken !== 'undefined' &&
-            savedToken !== 'null'
-        )
-            ? savedToken
-            : null;
-    });
-
-    const handleLoginSuccess = (
-        newToken
-    ) => {
-        localStorage.setItem(
-            'token',
-            newToken
-        );
-
-        setToken(newToken);
+    const handleLoginSuccess = () => {
+        setAutenticado(true);
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem(
-            'token'
-        );
-
-        setToken(null);
+    const handleLogout = async () => {
+        try {
+            await api.post('/auth/logout');
+        } catch {
+            // Fecha a sessão na interface mesmo se a API estiver indisponível.
+        } finally {
+            setAutenticado(false);
+        }
     };
 
     useEffect(() => {
+        api.get('/auth/session')
+            .then(() => setAutenticado(true))
+            .catch(() => setAutenticado(false));
+
         const aoExpirar = () => {
-            setToken(null);
+            setAutenticado(false);
         };
 
         window.addEventListener(
@@ -55,7 +44,7 @@ export default function App() {
 
     return (
         <div>
-            {!token ? (
+            {!autenticado ? (
                 <Login
                     onLoginSuccess={
                         handleLoginSuccess
@@ -64,7 +53,6 @@ export default function App() {
             ) : (
                 <>
                     <Dashboard
-                        token={token}
                         onLogout={
                             handleLogout
                         }

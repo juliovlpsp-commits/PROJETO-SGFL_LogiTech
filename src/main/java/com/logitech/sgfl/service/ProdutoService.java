@@ -9,6 +9,8 @@ import com.logitech.sgfl.repository.ItemPedidoRepository;
 import com.logitech.sgfl.repository.ProdutoRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -219,6 +221,11 @@ public class ProdutoService {
         );
 
         return produtos;
+    }
+
+    @Transactional
+    public Page<Produto> listar(Pageable pageable) {
+        return produtoRepository.findAll(pageable);
     }
 
     private String normalizarTexto(

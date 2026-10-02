@@ -2,6 +2,7 @@ package com.logitech.sgfl.controller;
 
 import com.logitech.sgfl.dto.CaminhaoRequest;
 import com.logitech.sgfl.dto.FurgaoRequest;
+import com.logitech.sgfl.dto.VeiculoResponse;
 import com.logitech.sgfl.exceptions.RecursoNaoEncontradoException;
 import com.logitech.sgfl.me.Caminhao;
 import com.logitech.sgfl.me.Furgao;
@@ -31,12 +32,12 @@ public class VeiculoController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Veiculo>> listarTodos() {
-        return ResponseEntity.ok(veiculoRepository.findAll());
+    public ResponseEntity<List<VeiculoResponse>> listarTodos() {
+        return ResponseEntity.ok(veiculoRepository.findAll().stream().map(VeiculoResponse::from).toList());
     }
 
     @PostMapping("/caminhao")
-    public ResponseEntity<Caminhao> criarCaminhao(@Valid @RequestBody CaminhaoRequest request) {
+    public ResponseEntity<VeiculoResponse> criarCaminhao(@Valid @RequestBody CaminhaoRequest request) {
         String placa = normalizarPlaca(request.getPlaca());
         validarPlacaNormalizada(placa);
 
@@ -47,11 +48,11 @@ public class VeiculoController {
         Caminhao caminhao = new Caminhao(
                 placa, request.getModelo().trim(), request.getCapacidadeCargaKg(), request.getQuantidadeEixos());
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(veiculoRepository.save(caminhao));
+        return ResponseEntity.status(HttpStatus.CREATED).body(VeiculoResponse.from(veiculoRepository.save(caminhao)));
     }
 
     @PostMapping("/furgao")
-    public ResponseEntity<Furgao> criarFurgao(@Valid @RequestBody FurgaoRequest request) {
+    public ResponseEntity<VeiculoResponse> criarFurgao(@Valid @RequestBody FurgaoRequest request) {
         String placa = normalizarPlaca(request.getPlaca());
         validarPlacaNormalizada(placa);
 
@@ -62,11 +63,11 @@ public class VeiculoController {
         Furgao furgao = new Furgao(
                 placa, request.getModelo().trim(), request.getCapacidadeCargaKg(), request.getVolumeM3());
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(veiculoRepository.save(furgao));
+        return ResponseEntity.status(HttpStatus.CREATED).body(VeiculoResponse.from(veiculoRepository.save(furgao)));
     }
 
     @PutMapping("/caminhao/{id}")
-    public ResponseEntity<Caminhao> atualizarCaminhao(
+    public ResponseEntity<VeiculoResponse> atualizarCaminhao(
             @PathVariable Long id,
             @Valid @RequestBody CaminhaoRequest request
     ) {
@@ -89,11 +90,11 @@ public class VeiculoController {
         caminhao.setCapacidadeCargaKg(request.getCapacidadeCargaKg());
         caminhao.setQuantidadeEixos(request.getQuantidadeEixos());
 
-        return ResponseEntity.ok(veiculoRepository.save(caminhao));
+        return ResponseEntity.ok(VeiculoResponse.from(veiculoRepository.save(caminhao)));
     }
 
     @PutMapping("/furgao/{id}")
-    public ResponseEntity<Furgao> atualizarFurgao(
+    public ResponseEntity<VeiculoResponse> atualizarFurgao(
             @PathVariable Long id,
             @Valid @RequestBody FurgaoRequest request
     ) {
@@ -116,7 +117,7 @@ public class VeiculoController {
         furgao.setCapacidadeCargaKg(request.getCapacidadeCargaKg());
         furgao.setVolumeM3(request.getVolumeM3());
 
-        return ResponseEntity.ok(veiculoRepository.save(furgao));
+        return ResponseEntity.ok(VeiculoResponse.from(veiculoRepository.save(furgao)));
     }
 
     @DeleteMapping("/{id}")

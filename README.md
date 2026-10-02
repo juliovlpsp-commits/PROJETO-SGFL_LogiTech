@@ -1,6 +1,6 @@
 # SGFL - Sistema de Gestão de Frota e Logística
 
-API REST em Spring Boot para gestão de entregas, veículos e motoristas, com autenticação JWT, validação de regras de negócio, tratamento de erros centralizado e testes automatizados (unitários, de repositório e de integração ponta a ponta).
+Sistema web com API REST em Spring Boot e frontend React para gestão de frota, entregas, clientes, produtos, estoque e pedidos. Inclui autenticação JWT, regras de negócio, tratamento centralizado de erros e testes automatizados.
 
  
 ---
@@ -24,33 +24,20 @@ API REST em Spring Boot para gestão de entregas, veículos e motoristas, com au
 
 ## Arquitetura
 
-```
-controller/   -> endpoints REST (HTTP <-> aplicação)
-service/      -> regras de negócio
-repository/   -> acesso a dados (Spring Data JPA)
-me/           -> entidades JPA
-dto/          -> contratos de entrada da API (DTOs com validação). Atenção: as respostas de
-             entregas, motoristas e veículos ainda serializam a entidade JPA diretamente
-             (nenhuma contém dados sensíveis; `Usuario` nunca é exposto)
-security/     -> JWT, filtro de autenticação, configuração do Spring Security
-exceptions/   -> exceções de domínio + tratamento de erro centralizado
-enums/        -> Perfil, StatusEntrega
-```
+Consulte [`ARCHITECTURE.md`](ARCHITECTURE.md) para o mapa atualizado dos módulos de frota, entregas e gestão comercial.
 
-O front-end nunca fala diretamente com o banco: toda operação passa pela API REST autenticada por token.
+O código está separado em controllers, serviços, repositórios, entidades, DTOs, segurança, tratamento de erros, logging e rate limiting. As respostas da API usam DTOs para manter os contratos HTTP separados das entidades JPA. O frontend nunca acessa o banco diretamente.
  
 ---
 
 ## Autenticação
 
 - `POST /api/auth/registrar` — cadastro público; cria sempre um usuário `ROLE_OPERADOR` (senha de 8 a 72 caracteres). O `username` informado também é usado como e-mail de login.
-- `POST /api/auth/login` — autentica por **email** e senha, devolve um JWT
-  Todas as demais rotas exigem o header:
-```
-Authorization: Bearer <token>
-```
+- `POST /api/auth/login` — autentica por **email** e senha e configura um cookie de sessão JWT `HttpOnly`.
+- `GET /api/auth/session` — verifica se o cookie representa uma sessão válida.
+- `POST /api/auth/logout` — encerra a sessão removendo o cookie.
 
-O token expira em 24h por padrão (configurável via `JWT_EXPIRATION_MS`).
+O navegador envia o cookie automaticamente nas chamadas à API. O cookie é `HttpOnly`, `SameSite=Lax` e expira em 24h por padrão (configurável via `JWT_EXPIRATION_MS`). Em produção com HTTPS, configure `APP_COOKIE_SECURE=true`.
 
 Sem token, ou com token inválido/expirado, a API responde **401**. Autenticado, mas sem permissão para a operação, responde **403**.
 
@@ -99,6 +86,8 @@ Depois do primeiro acesso, pode voltar `BOOTSTRAP_ADMIN_ENABLED` para `false`.
 | PUT | `/api/entregas/{id}/finalizar` | Marca a entrega como concluída |
 | DELETE | `/api/entregas/{id}` | Remove uma entrega |
 
+Clientes, produtos e pedidos também usam `page` e `size` nas rotas de listagem, com 20 itens por padrão e máximo de 100. A resposta inclui `content`, `page`, `size`, `totalElements` e `totalPages`; a interface comercial oferece controles de página.
+
 Erros seguem sempre o mesmo formato:
 ```json
 {
@@ -130,6 +119,7 @@ Nada de senha ou segredo direto no `application.properties` — configure via va
 | `JWT_SECRET` | Chave de assinatura do token (mínimo 32 caracteres) | **obrigatória** (sem padrão) |
 | `BOOTSTRAP_ADMIN_ENABLED` / `_EMAIL` / `_USERNAME` / `_PASSWORD` | Criação do primeiro administrador (veja acima) | desligado |
 | `CORS_ALLOWED_ORIGINS` | Origens do front-end permitidas, separadas por vírgula | `http://localhost:5173,http://localhost:3000` |
+| `APP_COOKIE_SECURE` | Exige HTTPS para enviar o cookie JWT; habilite atrás de proxy TLS | `false` (desenvolvimento local) |
 | `FORWARD_HEADERS_STRATEGY` | `native` atrás de proxy (nginx), `none` se exposta diretamente | `native` |
 | `JWT_EXPIRATION_MS` | Validade do token (ms) | `86400000` (24h) |
 | `FLYWAY_ENABLED` | Ativa execução de migrações automáticas | `true` |
@@ -144,7 +134,7 @@ No IntelliJ: **Run/Debug Configurations → Environment Variables**.
 
 ## Execução com Docker (Recomendado)
 
-O projeto possui orquestração completa via **Docker Compose**, subindo banco PostgreSQL 16, backend Spring Boot e frontend React servido por Nginx com proxy reverso.
+O projeto possui orquestração completa via **Docker Compose**, subindo banco PostgreSQL 15, backend Spring Boot e frontend React servido por Nginx com proxy reverso.
 
 ### Antes de subir: crie o arquivo `.env`
 
@@ -230,9 +220,10 @@ Os testes gerais usam banco H2 em memória — não tocam no seu Postgres local.
 - Scripts localizados em `src/main/resources/db/migration/`:
   - `V1__create_tables.sql`: cria tabelas (`usuarios`, `veiculo`, `caminhao`, `furgao`, `motorista`, `entrega`), índices e chaves estrangeiras.
   - `V2__seed_initial_data.sql`: carga idempotente de motoristas de demonstração.
-  - `V3__corrigir_nomes_colunas.sql`: ajusta nomes de colunas para o que o Hibernate espera.
-  - `V4__carregar_dados_locais.sql`: dump de dados do ambiente local do desenvolvedor (histórico; não edite, o Flyway valida o checksum).
-  - `V5__integridade_dados_e_concorrencia.sql`: normaliza/remove duplicatas deixadas pela V4, cria constraints únicas de placa e CPF, índices únicos parciais contra dupla alocação e remove o admin com senha conhecida.
+  - `V3__carregar_dados_locais.sql`: carga histórica do ambiente local (não edite, o Flyway valida o checksum).
+  - `V4__corrigir_nomes_colunas.sql`: ajusta nomes de colunas para os mapeamentos JPA.
+  - `V5__integridade_dados_e_concorrencia.sql`: normaliza dados, cria constraints únicas de placa e CPF e índices contra dupla alocação.
+  - `V6__clientes_produtos_estoque_pedidos.sql`: cria as tabelas do módulo comercial.
   - **Regra daqui para frente:** nunca use migrations para dados de demonstração ou dumps. Migrations são só estrutura e dados de referência.
 
 ### 2. Logging Estruturado (JSON / Correlation ID)
@@ -251,6 +242,7 @@ Os testes gerais usam banco H2 em memória — não tocam no seu Postgres local.
 - Headers devolvidos em cada resposta:
   - `X-Rate-Limit-Remaining`: tokens restantes na janela.
   - `Retry-After`: tempo em segundos para tentar novamente caso exceda.
+- Os contadores são mantidos em memória por instância e buckets ociosos são removidos. Se o backend for escalado para múltiplas réplicas, use um armazenamento compartilhado para que os limites sejam globais.
 - Resposta padronizada com HTTP `429 Too Many Requests`:
 ```json
 {

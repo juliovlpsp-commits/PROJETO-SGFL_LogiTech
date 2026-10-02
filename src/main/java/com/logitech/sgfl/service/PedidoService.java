@@ -8,6 +8,8 @@ import com.logitech.sgfl.me.*;
 import com.logitech.sgfl.repository.*;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -237,6 +239,17 @@ public class PedidoService {
 
         return pedidoRepository
                 .findAllComItens();
+    }
+
+    @Transactional
+    public Page<Pedido> listar(Pageable pageable) {
+        Page<Pedido> pedidos = pedidoRepository.findAll(pageable);
+        // Inicializa as relações necessárias ao DTO ainda dentro da transação.
+        pedidos.forEach(pedido -> {
+            pedido.getCliente().getNome();
+            pedido.getItens().forEach(item -> item.getProduto().getNome());
+        });
+        return pedidos;
     }
 
     @Transactional

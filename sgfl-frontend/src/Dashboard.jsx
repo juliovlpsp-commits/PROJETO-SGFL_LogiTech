@@ -1,15 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTheme } from './useTheme';
 import CadastroRecursos from './CadastroRecursos';
+import api from './api';
 
 const TAMANHO_PAGINA = 10;
 
-const API_BASE_URL = (
-    import.meta.env.VITE_API_URL ||
-    'http://localhost:8080/api'
-).replace(/\/$/, '');
-
-export default function Dashboard({ token, onLogout }) {
+export default function Dashboard({ onLogout }) {
 
     const [entregas, setEntregas] = useState([]);
     const [veiculos, setVeiculos] = useState([]);
@@ -90,99 +86,35 @@ export default function Dashboard({ token, onLogout }) {
 
     const styles = getStyles(theme);
 
-    const getHeaders = useCallback(
-        (contentType = false) => {
-
-            const headers = {
-                Authorization: `Bearer ${token}`
-            };
-
-            if (contentType) {
-                headers['Content-Type'] = 'application/json';
-            }
-
-            return headers;
-        },
-        [token]
-    );
-
-    const lerResposta = async (response) => {
-
-        const contentType =
-            response.headers.get('content-type') || '';
-
-        if (
-            contentType.includes('application/json')
-        ) {
-            return await response.json();
-        }
-
-        const texto = await response.text();
-
-        return texto
-            ? { message: texto }
-            : null;
-    };
-
     const request = useCallback(
         async (
             url,
             options = {}
         ) => {
-
-            let response;
-
             try {
-
-                response = await fetch(
-                    `${API_BASE_URL}${url}`,
-                    {
-                        ...options,
-                        headers: {
-                            ...getHeaders(
-                                Boolean(options.body)
-                            ),
-                            ...(options.headers || {})
-                        }
+                const response = await api.request({
+                    url,
+                    method: options.method || 'GET',
+                    data: options.body,
+                    headers: {
+                        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+                        ...(options.headers || {})
                     }
-                );
-
+                });
+                return response.data;
             } catch (error) {
-
-                const connectionError =
-                    new Error(
-                        'Não foi possível conectar ao servidor.'
-                    );
-
-                connectionError.code =
-                    'NETWORK_ERROR';
-
-                throw connectionError;
-            }
-
-            const data =
-                await lerResposta(response);
-
-            if (!response.ok) {
-
-                const error =
-                    new Error(
-                        data?.message ||
-                        `Erro HTTP ${response.status}`
-                    );
-
-                error.status =
-                    response.status;
-
-                error.data =
-                    data;
-
+                if (error.response) {
+                    error.status = error.response.status;
+                    error.data = error.response.data;
+                    error.message = error.response.data?.message || error.message;
+                } else {
+                    error.code = 'NETWORK_ERROR';
+                    error.message = 'Não foi possível conectar ao servidor.';
+                }
                 throw error;
             }
-
-            return data;
         },
-        [getHeaders]
+        []
     );
 
     const mostrarMensagem = useCallback(

@@ -1,14 +1,16 @@
 package com.logitech.sgfl.controller;
 
 import com.logitech.sgfl.dto.ClienteRequest;
+import com.logitech.sgfl.dto.ClienteResponse;
+import com.logitech.sgfl.config.Pagination;
+import com.logitech.sgfl.dto.PageResponse;
 import com.logitech.sgfl.me.Cliente;
 import com.logitech.sgfl.service.ClienteService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/clientes")
@@ -23,23 +25,25 @@ public class ClienteController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Cliente>> listar() {
-        return ResponseEntity.ok(
-                clienteService.listar()
-        );
+    public PageResponse<ClienteResponse> listar(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        Page<Cliente> clientes = clienteService.listar(Pagination.request(page, size));
+        return PageResponse.from(clientes, ClienteResponse::from);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Cliente> buscar(
+    public ResponseEntity<ClienteResponse> buscar(
             @PathVariable Long id
     ) {
         return ResponseEntity.ok(
-                clienteService.buscar(id)
+                ClienteResponse.from(clienteService.buscar(id))
         );
     }
 
     @PostMapping
-    public ResponseEntity<Cliente> criar(
+    public ResponseEntity<ClienteResponse> criar(
             @Valid @RequestBody ClienteRequest request
     ) {
 
@@ -60,11 +64,11 @@ public class ClienteController {
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(cliente);
+                .body(ClienteResponse.from(cliente));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Cliente> atualizar(
+    public ResponseEntity<ClienteResponse> atualizar(
             @PathVariable Long id,
             @Valid @RequestBody ClienteRequest request,
             @RequestParam(
@@ -74,7 +78,7 @@ public class ClienteController {
     ) {
 
         return ResponseEntity.ok(
-                clienteService.atualizar(
+                ClienteResponse.from(clienteService.atualizar(
                         id,
                         request.getNome(),
                         request.getCpf(),
@@ -88,7 +92,7 @@ public class ClienteController {
                         request.getCidade(),
                         request.getUf(),
                         ativo
-                )
+                ))
         );
     }
 

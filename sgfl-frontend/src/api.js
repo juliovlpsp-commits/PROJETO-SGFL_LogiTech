@@ -3,31 +3,19 @@ import axios from 'axios';
 const api = axios.create({
     baseURL:
         import.meta.env.VITE_API_URL ||
-        'http://localhost:8080/api'
+        'http://localhost:8080/api',
+    withCredentials: true
 });
 
-api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token');
-
-    if (token) {
-        config.headers.Authorization =
-            `Bearer ${token}`;
-    }
-
-    return config;
-});
-
-// Token expirado/invalido: limpa a sessao e avisa o App para voltar ao login.
-// Ignora as rotas de autenticacao, onde 401 significa apenas "credenciais erradas".
+// Sessão do navegador usa cookie HttpOnly; credenciais inválidas no login
+// não devem encerrar uma sessão já aberta em outra tela.
 api.interceptors.response.use(
     (response) => response,
     (error) => {
         const status = error.response?.status;
         const url = error.config?.url || '';
-        const temToken = !!localStorage.getItem('token');
 
-        if (status === 401 && temToken && !url.includes('/auth/')) {
-            localStorage.removeItem('token');
+        if (status === 401 && !url.includes('/auth/')) {
             window.dispatchEvent(new Event('sgfl:unauthorized'));
         }
 

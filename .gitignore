@@ -10,6 +10,9 @@ node_modules/
 dist/
 .env
 .env.local
+/deployment/.env.production
+sgfl-frontend/playwright-report/
+sgfl-frontend/test-results/
 
 ### IntelliJ IDEA ###
 .idea/

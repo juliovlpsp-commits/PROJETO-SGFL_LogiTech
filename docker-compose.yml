@@ -133,6 +133,7 @@ services:
       - --storage.tsdb.retention.time=15d
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/sgfl-alerts.yml:/etc/prometheus/sgfl-alerts.yml:ro
       - prometheus_data:/prometheus
     ports:
       - "127.0.0.1:9090:9090"

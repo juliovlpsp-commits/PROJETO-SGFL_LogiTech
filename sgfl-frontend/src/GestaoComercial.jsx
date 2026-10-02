@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import api from './api';
 import { useTheme } from './useTheme';
+import useTabTransition from './useTabTransition';
 import {
     Boxes,
     ClipboardList,
@@ -45,7 +46,19 @@ export default function GestaoComercial() {
     const styles = getStyles(theme);
 
     const [aberto, setAberto] = useState(false);
-    const [aba, setAba] = useState(ABA_CLIENTES);
+    const [fechando, setFechando] = useState(false);
+    const fechamentoTimeoutRef = useRef(null);
+    const {
+        aba,
+        trocarAba: setAba,
+        faseTransicao,
+        transicionando
+    } = useTabTransition(ABA_CLIENTES);
+    const classePainelAba = faseTransicao === 'saindo'
+        ? 'sgfl-tab-transition-exit'
+        : faseTransicao === 'entrando'
+            ? 'sgfl-tab-transition-enter'
+            : '';
 
     const [clientes, setClientes] = useState([]);
     const [produtos, setProdutos] = useState([]);
@@ -234,6 +247,10 @@ export default function GestaoComercial() {
         aberto,
         carregarDados
     ]);
+
+    useEffect(() => () => {
+        window.clearTimeout(fechamentoTimeoutRef.current);
+    }, []);
 
     const limparClienteForm = () => {
         setClienteEditando(null);
@@ -760,24 +777,35 @@ export default function GestaoComercial() {
         }
     };
 
+    const abrir = () => {
+        window.clearTimeout(fechamentoTimeoutRef.current);
+        fechamentoTimeoutRef.current = null;
+        setFechando(false);
+        setAberto(true);
+    };
+
     const fechar = () => {
-        if (salvando) {
+        if (salvando || fechando || fechamentoTimeoutRef.current) {
             return;
         }
 
-        setAberto(false);
-        setMensagem('');
-        limparClienteForm();
-        limparProdutoForm();
+        setFechando(true);
+        const movimentoReduzido = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        fechamentoTimeoutRef.current = window.setTimeout(() => {
+            setAberto(false);
+            setFechando(false);
+            setMensagem('');
+            limparClienteForm();
+            limparProdutoForm();
+            fechamentoTimeoutRef.current = null;
+        }, movimentoReduzido ? 0 : 180);
     };
 
     if (!aberto) {
         return (
             <BlurButton
                 type="button"
-                onClick={() =>
-                    setAberto(true)
-                }
+                onClick={abrir}
                 style={styles.launcher}
             >
                 <Boxes size={16} />
@@ -787,7 +815,10 @@ export default function GestaoComercial() {
     }
 
     return (
-        <div style={styles.overlay}>
+        <div
+            className={fechando ? 'sgfl-modal-transition-exit' : 'sgfl-modal-transition-enter'}
+            style={styles.overlay}
+        >
             <section style={styles.modal}>
                 <header style={styles.header}>
                     <div>
@@ -824,6 +855,7 @@ export default function GestaoComercial() {
                             <Users size={15} />
                         }
                         label={`Clientes (${clientes.length})`}
+                        disabled={transicionando}
                         onClick={() => {
                             setAba(
                                 ABA_CLIENTES
@@ -842,6 +874,7 @@ export default function GestaoComercial() {
                             <Boxes size={15} />
                         }
                         label={`Produtos (${produtos.length})`}
+                        disabled={transicionando}
                         onClick={() => {
                             setAba(
                                 ABA_PRODUTOS
@@ -860,6 +893,7 @@ export default function GestaoComercial() {
                             <ClipboardList size={15} />
                         }
                         label={`Pedidos (${pedidos.length})`}
+                        disabled={transicionando}
                         onClick={() => {
                             setAba(
                                 ABA_PEDIDOS
@@ -901,6 +935,7 @@ export default function GestaoComercial() {
                 {aba ===
                     ABA_CLIENTES && (
                         <div
+                            className={classePainelAba}
                             style={
                                 styles.grid
                             }
@@ -1377,6 +1412,7 @@ export default function GestaoComercial() {
                 {aba ===
                     ABA_PRODUTOS && (
                         <div
+                            className={classePainelAba}
                             style={
                                 styles.grid
                             }
@@ -1784,6 +1820,7 @@ export default function GestaoComercial() {
                 {aba ===
                     ABA_PEDIDOS && (
                         <div
+                            className={classePainelAba}
                             style={
                                 styles.grid
                             }
@@ -2228,7 +2265,8 @@ function TabButton({
                        onClick,
                        theme,
                        icon,
-                       label
+                       label,
+                       disabled = false
                    }) {
     const styles = getStyles(theme);
 
@@ -2236,6 +2274,7 @@ function TabButton({
         <BlurButton
             type="button"
             onClick={onClick}
+            disabled={disabled}
             style={
                 active
                     ? {

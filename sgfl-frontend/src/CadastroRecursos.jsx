@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import api from './api';
+import useTabTransition from './useTabTransition';
 
 export default function CadastroRecursos({
                                              theme,
@@ -8,7 +9,19 @@ export default function CadastroRecursos({
                                              onClose,
                                              onAtualizar
                                          }) {
-    const [aba, setAba] = useState('motorista');
+    const [fechando, setFechando] = useState(false);
+    const fechamentoTimeoutRef = useRef(null);
+    const {
+        aba,
+        trocarAba: setAba,
+        faseTransicao,
+        transicionando
+    } = useTabTransition('motorista');
+    const classePainelAba = faseTransicao === 'saindo'
+        ? 'sgfl-tab-transition-exit'
+        : faseTransicao === 'entrando'
+            ? 'sgfl-tab-transition-enter'
+            : '';
 
     const [motoristaEditando, setMotoristaEditando] =
         useState(null);
@@ -40,6 +53,21 @@ export default function CadastroRecursos({
 
     const [salvando, setSalvando] =
         useState(false);
+
+    useEffect(() => () => {
+        window.clearTimeout(fechamentoTimeoutRef.current);
+    }, []);
+
+    const fechar = () => {
+        if (salvando || fechando || fechamentoTimeoutRef.current) return;
+
+        setFechando(true);
+        const movimentoReduzido = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        fechamentoTimeoutRef.current = window.setTimeout(() => {
+            fechamentoTimeoutRef.current = null;
+            onClose();
+        }, movimentoReduzido ? 0 : 180);
+    };
 
     const limparMensagens = () => {
         setMensagem('');
@@ -531,6 +559,7 @@ export default function CadastroRecursos({
 
     return (
         <div
+            className={fechando ? 'sgfl-modal-transition-exit' : 'sgfl-modal-transition-enter'}
             style={{
                 position: 'fixed',
                 inset: 0,
@@ -601,8 +630,8 @@ export default function CadastroRecursos({
 
                     <button
                         type="button"
-                        onClick={onClose}
-                        disabled={salvando}
+                        onClick={fechar}
+                        disabled={salvando || fechando}
                         style={{
                             width: '34px',
                             height: '34px',
@@ -631,6 +660,7 @@ export default function CadastroRecursos({
 
                     <button
                         type="button"
+                        disabled={transicionando}
                         onClick={() => {
                             setAba(
                                 'motorista'
@@ -665,6 +695,7 @@ export default function CadastroRecursos({
 
                     <button
                         type="button"
+                        disabled={transicionando}
                         onClick={() => {
                             setAba(
                                 'veiculo'
@@ -741,6 +772,7 @@ export default function CadastroRecursos({
                     </div>
                 )}
 
+                <div key={aba} className={classePainelAba}>
                 {aba === 'motorista' && (
                     <>
                         <form
@@ -1198,6 +1230,8 @@ export default function CadastroRecursos({
                         />
                     </>
                 )}
+
+                </div>
 
             </div>
         </div>

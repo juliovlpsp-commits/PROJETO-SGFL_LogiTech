@@ -170,7 +170,37 @@ docker compose down
 
 ---
 
-## Execução Local (sem Docker)
+## Execução portátil (sem Docker e sem PostgreSQL)
+
+O perfil `local` usa H2 embutido em arquivo e serve a interface React pelo próprio backend. Assim, não é preciso instalar ou iniciar PostgreSQL, Docker, Nginx ou Node na máquina que só vai executar um JAR já compilado.
+
+Para compilar o projeto a partir do código-fonte, instale Java 17 ou superior e Node.js 20.19+ (ou 22.12+) com npm. Na primeira compilação, Maven e npm precisam baixar dependências pela internet. Na pasta raiz, use o script do seu sistema:
+
+```powershell
+# Windows PowerShell: compila frontend + backend e inicia a aplicação
+.\run-local.ps1
+# Se o Windows bloquear a execução do script:
+powershell -NoProfile -ExecutionPolicy Bypass -File .\run-local.ps1
+```
+
+```bash
+# Linux/macOS: compila frontend + backend e inicia a aplicação
+bash ./run-local.sh
+```
+
+Na primeira execução, o script pede e-mail, usuário e senha do administrador. Depois, abra [http://localhost:8080](http://localhost:8080). O banco local fica em `data/sgfl.mv.db` e permanece salvo entre execuções. O diretório `data/` está ignorado pelo Git.
+
+Se o JAR já estiver compilado dentro do projeto, `.\run-local.ps1 -NoBuild` no Windows ou `bash ./run-local.sh --no-build` em Linux/macOS inicia sem Node/npm. Para transportar o aplicativo, gere o pacote portátil abaixo; ele inclui o JAR e os iniciadores que configuram o banco e o primeiro administrador. A UI já está dentro do JAR.
+
+Para montar uma pasta pronta para outro computador, execute `powershell -ExecutionPolicy Bypass -File .\package-portable.ps1` no Windows ou `bash ./package-portable.sh` em Linux/macOS. O resultado fica em `portable-runtime/` e também em `sgfl-portatil.zip` (o ZIP Linux/macOS é criado quando o utilitário `zip` está disponível). Copie essa pasta ou o ZIP para a outra máquina, extraia e inicie com `run-local.bat` ou `run-local.ps1` (Windows) ou `bash ./run-local.sh` (Linux/macOS). A máquina de destino precisa de Java 17 ou superior; ela não precisa de Node/npm, Maven, PostgreSQL ou Docker. Na primeira abertura, o iniciador solicita a criação do administrador local.
+
+O pacote é compilado para a plataforma Java e pode rodar em Windows, Linux ou macOS compatíveis com Java 17+. Para levar também os dados H2 de uma instalação existente, pare a aplicação e copie a pasta `data/` junto do pacote. O pacote recém-gerado não contém dados pessoais.
+
+O H2 local é para executar uma cópia do sistema em um computador. Ele não importa automaticamente os dados do PostgreSQL/Docker nem substitui um banco servidor para uso simultâneo por vários computadores. Para preservar os dados antigos, é preciso migrá-los separadamente; para compartilhar uma base entre máquinas, mantenha PostgreSQL.
+
+## Desenvolvimento manual (frontend e backend separados)
+
+Estes comandos continuam disponíveis para desenvolvimento com Vite. O backend no perfil padrão ainda exige um PostgreSQL iniciado e as variáveis de ambiente configuradas. Para não usar PostgreSQL nem Docker, prefira os scripts portáteis acima.
 
 ### 1. Rodar o backend
 

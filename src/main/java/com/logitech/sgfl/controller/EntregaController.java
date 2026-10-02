@@ -8,6 +8,7 @@ import com.logitech.sgfl.exceptions.RecursoNaoEncontradoException;
 import com.logitech.sgfl.exceptions.RegraNegocioException;
 import com.logitech.sgfl.me.Entrega;
 import com.logitech.sgfl.repository.EntregaRepository;
+import com.logitech.sgfl.repository.EntregaSpecifications;
 import com.logitech.sgfl.service.ServicoGerenciamento;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -41,7 +42,9 @@ public class EntregaController {
     @GetMapping
     public Page<EntregaResponse> listar(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "" + TAMANHO_PAGINA_PADRAO) int size
+            @RequestParam(defaultValue = "" + TAMANHO_PAGINA_PADRAO) int size,
+            @RequestParam(required = false) StatusEntrega status,
+            @RequestParam(required = false) String q
     ) {
         int tamanhoSeguro =
                 Math.min(
@@ -56,7 +59,8 @@ public class EntregaController {
                         Sort.by("id").ascending()
                 );
 
-        return entregaRepository.findAll(pageable).map(EntregaResponse::from);
+        return entregaRepository.findAll(EntregaSpecifications.filtrar(status, q), pageable)
+                .map(EntregaResponse::from);
     }
 
     /**

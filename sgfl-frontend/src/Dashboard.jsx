@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTheme } from './useTheme';
 import CadastroRecursos from './CadastroRecursos';
 import api from './api';
@@ -13,6 +13,16 @@ export default function Dashboard({ onLogout }) {
 
     const [pagina, setPagina] = useState(0);
     const [totalPaginas, setTotalPaginas] = useState(0);
+    const [buscaEntrega, setBuscaEntrega] = useState('');
+    const [filtroStatusEntrega, setFiltroStatusEntrega] = useState('');
+    const requisicaoEntregasRef = useRef(0);
+    const workspaceRef = useRef(null);
+    const workspaceContentRef = useRef(null);
+    const [painelEntregasAberto, setPainelEntregasAberto] = useState(false);
+    const [transicaoPainel, setTransicaoPainel] = useState('');
+    const transicaoTimeoutRef = useRef(null);
+    const [workspaceTemRolagem, setWorkspaceTemRolagem] = useState(false);
+    const [workspaceNoFim, setWorkspaceNoFim] = useState(false);
 
     const [descricao, setDescricao] = useState('');
     const [enderecoOrigem, setEnderecoOrigem] = useState('');
@@ -210,13 +220,31 @@ export default function Dashboard({ onLogout }) {
         async (
             paginaAlvo = 0
         ) => {
+            const requisicaoAtual = ++requisicaoEntregasRef.current;
+            const parametros = new URLSearchParams({
+                page: String(paginaAlvo),
+                size: String(TAMANHO_PAGINA)
+            });
+            const termo = buscaEntrega.trim();
+
+            if (termo) {
+                parametros.set('q', termo);
+            }
+
+            if (filtroStatusEntrega) {
+                parametros.set('status', filtroStatusEntrega);
+            }
 
             try {
 
                 const data =
                     await request(
-                        `/entregas?page=${paginaAlvo}&size=${TAMANHO_PAGINA}`
+                        `/entregas?${parametros.toString()}`
                     );
+
+                if (requisicaoAtual !== requisicaoEntregasRef.current) {
+                    return;
+                }
 
                 setEntregas(
                     Array.isArray(
@@ -242,6 +270,10 @@ export default function Dashboard({ onLogout }) {
 
             } catch (error) {
 
+                if (requisicaoAtual !== requisicaoEntregasRef.current) {
+                    return;
+                }
+
                 tratarErro(
                     error,
                     'Não foi possível carregar as entregas.'
@@ -250,7 +282,9 @@ export default function Dashboard({ onLogout }) {
         },
         [
             request,
-            tratarErro
+            tratarErro,
+            buscaEntrega,
+            filtroStatusEntrega
         ]
     );
 
@@ -305,15 +339,90 @@ export default function Dashboard({ onLogout }) {
         ]
     );
 
+    const atualizarIndicadorRolagem = useCallback(() => {
+        const workspace = workspaceRef.current;
+        if (!workspace) return;
+
+        const temRolagem = workspace.scrollHeight > workspace.clientHeight + 4;
+        const chegouAoFim = workspace.scrollTop + workspace.clientHeight >= workspace.scrollHeight - 16;
+
+        setWorkspaceTemRolagem(temRolagem);
+        setWorkspaceNoFim(chegouAoFim);
+    }, []);
+
     useEffect(() => {
+        const atraso = buscaEntrega.trim() ? 350 : 0;
+        const temporizador = window.setTimeout(() => carregarEntregas(0), atraso);
 
-        carregarEntregas(0);
+        return () => window.clearTimeout(temporizador);
+    }, [buscaEntrega, filtroStatusEntrega, carregarEntregas]);
+
+    useEffect(() => {
         carregarRecursos();
+    }, [carregarRecursos]);
 
-    }, [
-        carregarEntregas,
-        carregarRecursos
-    ]);
+    useEffect(() => {
+        const workspace = workspaceRef.current;
+        const conteudo = workspaceContentRef.current;
+        if (!workspace || !conteudo) return undefined;
+
+        atualizarIndicadorRolagem();
+        window.addEventListener('resize', atualizarIndicadorRolagem);
+
+        const observer = typeof ResizeObserver === 'undefined'
+            ? null
+            : new ResizeObserver(atualizarIndicadorRolagem);
+        observer?.observe(workspace);
+        observer?.observe(conteudo);
+
+        return () => {
+            window.removeEventListener('resize', atualizarIndicadorRolagem);
+            observer?.disconnect();
+        };
+    }, [atualizarIndicadorRolagem, entregas, totalPaginas, mensagem]);
+
+    useEffect(() => () => {
+        window.clearTimeout(transicaoTimeoutRef.current);
+    }, []);
+
+    const transicionarPainel = (abrir) => {
+        if (transicaoTimeoutRef.current) return;
+
+        const movimentoReduzido = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        const duracaoSaida = movimentoReduzido ? 0 : 220;
+        const duracaoEntrada = movimentoReduzido ? 0 : 620;
+
+        setTransicaoPainel(abrir ? 'saindo-capa' : 'saindo-painel');
+        transicaoTimeoutRef.current = window.setTimeout(() => {
+            if (workspaceRef.current) {
+                workspaceRef.current.scrollTop = 0;
+            }
+
+            setPainelEntregasAberto(abrir);
+            setWorkspaceNoFim(false);
+            setTransicaoPainel(abrir ? 'entrando-painel' : 'entrando-capa');
+
+            transicaoTimeoutRef.current = window.setTimeout(() => {
+                setTransicaoPainel('');
+                transicaoTimeoutRef.current = null;
+            }, duracaoEntrada);
+        }, duracaoSaida);
+    };
+
+    const acessarEntregas = () => transicionarPainel(true);
+    const voltarParaInicio = () => transicionarPainel(false);
+
+    const rolarWorkspace = () => {
+        const workspace = workspaceRef.current;
+        if (!workspace) return;
+
+        workspace.scrollTo({
+            top: workspaceNoFim
+                ? 0
+                : workspace.scrollTop + workspace.clientHeight * 0.78,
+            behavior: 'smooth'
+        });
+    };
 
     const handleCriarEntrega =
         async (
@@ -1011,7 +1120,78 @@ export default function Dashboard({ onLogout }) {
                     </div>
                 )}
 
+                <main
+                    ref={workspaceRef}
+                    className="sgfl-dashboard-scroll"
+                    onScroll={atualizarIndicadorRolagem}
+                    style={styles.workspace}
+                >
+                    <div
+                        ref={workspaceContentRef}
+                        style={styles.workspaceContent}
+                    >
+                        {!painelEntregasAberto ? (
+                        <section
+                            className={`sgfl-delivery-cover sgfl-delivery-cover-gate ${transicaoPainel === 'saindo-capa' ? 'sgfl-panel-transition-exit' : transicaoPainel === 'entrando-capa' ? 'sgfl-panel-transition-enter sgfl-panel-transition-enter-cover' : ''}`}
+                            style={{ ...styles.deliveryCover, ...styles.deliveryCoverGate }}
+                        >
+                            <div style={styles.deliveryCoverCopy}>
+                                <span style={styles.deliveryCoverEyebrow}>
+                                    SGFL / CONTROLE DE ENTREGAS
+                                </span>
+                                <h1 style={styles.deliveryCoverTitle}>
+                                    Entregas em <em>movimento.</em>
+                                </h1>
+                                <p style={styles.deliveryCoverText}>
+                                    Acompanhe cada etapa da operação, encontre uma entrega e mantenha os recursos no caminho certo.
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={acessarEntregas}
+                                    disabled={Boolean(transicaoPainel)}
+                                    style={styles.deliveryCoverButton}
+                                >
+                                    <span>Acessar entregas</span>
+                                    <ScrollArrowIcon />
+                                </button>
+                            </div>
+
+                            <div className="sgfl-delivery-cover-art" style={styles.deliveryCoverArt} aria-hidden="true">
+                                <div style={styles.deliveryCoverOrbit}>
+                                    <div style={styles.deliveryCoverPackage}>
+                                        <PackageIcon />
+                                    </div>
+                                    <div className="sgfl-delivery-orbit-spinner">
+                                        <span style={styles.deliveryCoverNode} />
+                                    </div>
+                                </div>
+                                <span style={styles.deliveryCoverCaption}>
+                                    OPERAÇÃO / 01
+                                </span>
+                            </div>
+                        </section>
+                        ) : (
+                        <div
+                            className={`sgfl-panel-transition-content ${transicaoPainel === 'saindo-painel' ? 'sgfl-panel-transition-exit' : transicaoPainel === 'entrando-painel' ? 'sgfl-panel-transition-enter' : ''}`}
+                            style={styles.panelTransitionContent}
+                        >
+                        <div style={styles.workspaceTitleBar}>
+                            <div>
+                                <span style={styles.deliveryCoverEyebrow}>SGFL / OPERAÇÃO</span>
+                                <h1 style={styles.workspaceTitle}>Painel de entregas</h1>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={voltarParaInicio}
+                                disabled={Boolean(transicaoPainel)}
+                                style={styles.workspaceBackButton}
+                            >
+                                Voltar ao início
+                            </button>
+                        </div>
+
                 <section
+                    className="sgfl-summary"
                     style={
                         styles.summaryGrid
                     }
@@ -1056,6 +1236,7 @@ export default function Dashboard({ onLogout }) {
                 </section>
 
                 <div
+                    className="sgfl-grid"
                     style={
                         styles.grid
                     }
@@ -1298,24 +1479,42 @@ export default function Dashboard({ onLogout }) {
                                 </span>
                             </div>
 
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    carregarEntregas(
-                                        pagina
-                                    )
-                                }
-                                disabled={
-                                    acaoEmAndamento !==
-                                    null
-                                }
-                                style={
-                                    styles.refreshButton
-                                }
-                            >
-                                <RefreshIcon />
-                                Atualizar
-                            </button>
+                            <div style={styles.deliveryToolbar}>
+                                <label style={styles.deliverySearch}>
+                                    <SearchIcon />
+                                    <input
+                                        type="search"
+                                        value={buscaEntrega}
+                                        onChange={event => setBuscaEntrega(event.target.value)}
+                                        placeholder="ID, produto, endereço, motorista..."
+                                        aria-label="Buscar entregas por ID, descrição, endereço, motorista ou veículo"
+                                        style={styles.deliverySearchInput}
+                                    />
+                                </label>
+
+                                <select
+                                    value={filtroStatusEntrega}
+                                    onChange={event => setFiltroStatusEntrega(event.target.value)}
+                                    aria-label="Filtrar entregas por status"
+                                    style={styles.deliveryStatusFilter}
+                                >
+                                    <option value="">Todos os status</option>
+                                    <option value="PENDENTE">Pendente</option>
+                                    <option value="EM_TRANSITO">Em trânsito</option>
+                                    <option value="ENTREGUE">Entregue</option>
+                                    <option value="CANCELADA">Cancelada</option>
+                                </select>
+
+                                <button
+                                    type="button"
+                                    onClick={() => carregarEntregas(pagina)}
+                                    disabled={acaoEmAndamento !== null}
+                                    style={styles.refreshButton}
+                                >
+                                    <RefreshIcon />
+                                    Atualizar
+                                </button>
+                            </div>
 
                         </div>
 
@@ -1334,8 +1533,9 @@ export default function Dashboard({ onLogout }) {
                                 </strong>
 
                                 <span>
-                                    Crie uma nova entrega para
-                                    começar.
+                                    {buscaEntrega.trim() || filtroStatusEntrega
+                                        ? 'Tente ajustar a busca ou o status selecionado.'
+                                        : 'Crie uma nova entrega para começar.'}
                                 </span>
                             </div>
 
@@ -1585,6 +1785,27 @@ export default function Dashboard({ onLogout }) {
                     </section>
 
                 </div>
+
+                        </div>
+                        )}
+
+                    </div>
+
+                </main>
+
+                    {workspaceTemRolagem && (
+                        <button
+                            type="button"
+                            className="sgfl-scroll-cue"
+                            onClick={rolarWorkspace}
+                            style={styles.scrollCue}
+                            aria-label={workspaceNoFim ? 'Voltar ao início do painel' : 'Rolar para baixo'}
+                            title={workspaceNoFim ? 'Voltar ao início' : 'Rolar para baixo'}
+                        >
+                            <ScrollArrowIcon direction={workspaceNoFim ? 'up' : 'down'} />
+                            <span>{workspaceNoFim ? 'Topo' : 'Ver mais'}</span>
+                        </button>
+                    )}
 
             </div>
 
@@ -1896,6 +2117,92 @@ export default function Dashboard({ onLogout }) {
                         -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.72), transparent 92%);
                     }
 
+                    .sgfl-scroll-cue svg {
+                        animation: sgfl-scroll-bob 1.7s ease-in-out infinite;
+                    }
+
+                    .sgfl-panel-transition-exit {
+                        animation: sgfl-panel-exit 220ms cubic-bezier(0.4, 0, 1, 1) both;
+                        pointer-events: none;
+                        will-change: transform, opacity, filter;
+                        backface-visibility: hidden;
+                    }
+
+                    .sgfl-panel-transition-enter {
+                        animation: sgfl-panel-enter 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+                        will-change: transform, opacity, filter;
+                        backface-visibility: hidden;
+                    }
+
+                    .sgfl-panel-transition-enter-cover {
+                        animation-name: sgfl-cover-enter;
+                    }
+
+                    @keyframes sgfl-panel-exit {
+                        from {
+                            opacity: 1;
+                            transform: translate3d(0, 0, 0) scale(1);
+                            filter: blur(0);
+                        }
+                        to {
+                            opacity: 0;
+                            transform: translate3d(0, -8px, 0) scale(0.995);
+                            filter: blur(2px);
+                        }
+                    }
+
+                    @keyframes sgfl-panel-enter {
+                        from {
+                            opacity: 0;
+                            transform: translate3d(0, 18px, 0) scale(0.99);
+                            filter: blur(2px);
+                        }
+                        32% {
+                            filter: blur(0);
+                        }
+                        to {
+                            opacity: 1;
+                            transform: translate3d(0, 0, 0) scale(1);
+                            filter: blur(0);
+                        }
+                    }
+
+                    @keyframes sgfl-cover-enter {
+                        from {
+                            opacity: 0;
+                            transform: translate3d(0, 12px, 0) scale(0.995);
+                            filter: blur(2px);
+                        }
+                        35% {
+                            filter: blur(0);
+                        }
+                        to {
+                            opacity: 1;
+                            transform: translate3d(0, 0, 0) scale(1);
+                            filter: blur(0);
+                        }
+                    }
+
+                    .sgfl-delivery-orbit-spinner {
+                        position: absolute;
+                        inset: 0;
+                        border-radius: 50%;
+                        transform: translateZ(0);
+                        transform-origin: 50% 50%;
+                        backface-visibility: hidden;
+                        will-change: transform;
+                        animation: sgfl-orbit-spin 6s linear infinite;
+                    }
+
+                    @keyframes sgfl-orbit-spin {
+                        to { transform: translateZ(0) rotate(1turn); }
+                    }
+
+                    @keyframes sgfl-scroll-bob {
+                        0%, 100% { transform: translateY(-2px); }
+                        50% { transform: translateY(2px); }
+                    }
+
                     .sgfl-page-dark button {
                         position: relative;
                         overflow: hidden;
@@ -1984,6 +2291,36 @@ export default function Dashboard({ onLogout }) {
                     @media (max-width: 760px) {
                         .sgfl-summary {
                             grid-template-columns: 1fr !important;
+                        }
+
+                        .sgfl-delivery-cover {
+                            grid-template-columns: 1fr !important;
+                            min-height: 0 !important;
+                            padding: 25px !important;
+                        }
+
+                        .sgfl-delivery-cover-art {
+                            display: none !important;
+                        }
+
+                        .sgfl-dashboard-scroll {
+                            padding-right: 3px !important;
+                        }
+                    }
+
+                    @media (prefers-reduced-motion: reduce) {
+                        .sgfl-scroll-cue svg {
+                            animation: none;
+                        }
+
+                        .sgfl-delivery-orbit-spinner {
+                            animation: none;
+                        }
+
+                        .sgfl-panel-transition-exit,
+                        .sgfl-panel-transition-enter {
+                            animation-duration: 1ms !important;
+                            will-change: auto;
                         }
                     }
                 `}
@@ -2290,6 +2627,42 @@ function RefreshIcon() {
     );
 }
 
+function SearchIcon() {
+    return (
+        <svg
+            aria-hidden="true"
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+        >
+            <circle cx="10.8" cy="10.8" r="6.8" />
+            <path d="m16 16 4.5 4.5" />
+        </svg>
+    );
+}
+
+function ScrollArrowIcon({ direction = 'down' }) {
+    return (
+        <svg
+            aria-hidden="true"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <path d={direction === 'up' ? 'M7 14l5-5 5 5' : 'M7 10l5 5 5-5'} />
+        </svg>
+    );
+}
+
 function SunIcon() {
     return (
         <svg
@@ -2337,7 +2710,8 @@ function getStyles(theme) {
 
     return {
         page: {
-            minHeight: '100vh',
+            height: '100dvh',
+            minHeight: '100dvh',
             position: 'relative',
             overflow: 'hidden',
             backgroundColor: theme.bg,
@@ -2346,15 +2720,19 @@ function getStyles(theme) {
             color: theme.ink,
             fontFamily:
                 "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-            padding: '28px 24px'
+            padding: '20px 24px'
         },
 
         shell: {
             width: '100%',
             maxWidth: '1500px',
+            height: '100%',
+            minHeight: 0,
             margin: '0 auto',
             position: 'relative',
-            zIndex: 2
+            zIndex: 2,
+            display: 'flex',
+            flexDirection: 'column'
         },
 
         header: {
@@ -2362,7 +2740,227 @@ function getStyles(theme) {
             justifyContent: 'space-between',
             alignItems: 'center',
             gap: '20px',
-            marginBottom: '20px'
+            marginBottom: '16px',
+            flex: '0 0 auto'
+        },
+
+        workspace: {
+            position: 'relative',
+            flex: '1 1 auto',
+            minHeight: 0,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            overscrollBehaviorY: 'contain',
+            scrollBehavior: 'smooth',
+            scrollbarGutter: 'stable',
+            padding: '5px 7px 5px 0',
+            border: `1px solid ${theme.border}`,
+            borderRadius: '22px',
+            backgroundColor: 'rgba(30, 13, 20, 0.25)',
+            backgroundImage: 'linear-gradient(145deg, rgba(244, 233, 236, 0.035), rgba(165, 69, 82, 0.055))',
+            backdropFilter: 'blur(20px) saturate(135%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(135%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)'
+        },
+
+        workspaceContent: {
+            position: 'relative',
+            minHeight: '100%',
+            padding: '8px 10px 28px 7px'
+        },
+
+        workspaceTitleBar: {
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '16px',
+            margin: '4px 4px 18px'
+        },
+
+        panelTransitionContent: {
+            position: 'relative'
+        },
+
+        workspaceTitle: {
+            margin: '-8px 0 0',
+            fontFamily: "Georgia, 'Times New Roman', serif",
+            fontSize: 'clamp(25px, 3vw, 38px)',
+            lineHeight: 1.05,
+            fontWeight: 400,
+            letterSpacing: '-0.025em'
+        },
+
+        workspaceBackButton: {
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '38px',
+            padding: '0 13px',
+            borderRadius: '11px',
+            border: `1px solid ${theme.border}`,
+            backgroundColor: theme.surfaceAlt,
+            color: theme.ink,
+            fontSize: '11px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap'
+        },
+
+        deliveryCover: {
+            position: 'relative',
+            isolation: 'isolate',
+            overflow: 'hidden',
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1.35fr) minmax(170px, 0.65fr)',
+            alignItems: 'center',
+            gap: '24px',
+            minHeight: '275px',
+            marginBottom: '22px',
+            padding: 'clamp(24px, 4vw, 48px)',
+            border: `1px solid ${theme.borderStrong}`,
+            borderRadius: '22px',
+            backgroundColor: 'rgba(30, 13, 20, 0.60)',
+            backgroundImage: 'radial-gradient(circle at 83% 30%, rgba(165,69,82,0.23), transparent 33%), linear-gradient(135deg, rgba(244,233,236,0.055), rgba(30,13,20,0.20))',
+            backdropFilter: 'blur(24px) saturate(145%)',
+            WebkitBackdropFilter: 'blur(24px) saturate(145%)',
+            boxShadow: '0 22px 54px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.08)'
+        },
+
+        deliveryCoverGate: {
+            position: 'absolute',
+            inset: '8px 10px 28px 7px',
+            minHeight: 0,
+            marginBottom: 0
+        },
+
+        deliveryCoverCopy: {
+            position: 'relative',
+            zIndex: 1,
+            maxWidth: '720px'
+        },
+
+        deliveryCoverEyebrow: {
+            display: 'block',
+            marginBottom: '16px',
+            color: theme.danger,
+            fontSize: '10px',
+            fontWeight: 800,
+            letterSpacing: '0.16em'
+        },
+
+        deliveryCoverTitle: {
+            margin: 0,
+            maxWidth: '720px',
+            fontFamily: "Georgia, 'Times New Roman', serif",
+            fontSize: 'clamp(42px, 5.4vw, 78px)',
+            lineHeight: 0.96,
+            fontWeight: 400,
+            letterSpacing: '-0.04em'
+        },
+
+        deliveryCoverText: {
+            maxWidth: '550px',
+            margin: '18px 0 22px',
+            color: theme.inkSoft,
+            fontSize: '13px',
+            lineHeight: 1.7
+        },
+
+        deliveryCoverButton: {
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '12px',
+            minHeight: '44px',
+            padding: '0 16px',
+            border: '1px solid rgba(200, 90, 110, 0.62)',
+            borderRadius: '12px',
+            backgroundImage: 'linear-gradient(135deg, #A54552 0%, #8D3F4B 52%, #6E202D 100%)',
+            color: theme.accentInk,
+            fontSize: '12px',
+            fontWeight: 750,
+            cursor: 'pointer',
+            boxShadow: '0 12px 30px rgba(110,32,45,0.24), inset 0 1px 0 rgba(255,255,255,0.15)'
+        },
+
+        deliveryCoverArt: {
+            position: 'relative',
+            justifySelf: 'center',
+            display: 'grid',
+            placeItems: 'center',
+            width: 'min(100%, 230px)',
+            aspectRatio: '1',
+            color: theme.inkSoft
+        },
+
+        deliveryCoverOrbit: {
+            position: 'relative',
+            display: 'grid',
+            placeItems: 'center',
+            width: '82%',
+            height: '82%',
+            border: '1px solid rgba(244,233,236,0.17)',
+            borderRadius: '50%',
+            backgroundImage: 'radial-gradient(circle, rgba(165,69,82,0.14), rgba(165,69,82,0.02) 63%, transparent 64%)',
+            boxShadow: '0 0 60px rgba(165,69,82,0.12), inset 0 0 32px rgba(244,233,236,0.035)'
+        },
+
+        deliveryCoverPackage: {
+            display: 'grid',
+            placeItems: 'center',
+            width: '82px',
+            height: '82px',
+            border: `1px solid ${theme.borderStrong}`,
+            borderRadius: '26px',
+            backgroundImage: 'linear-gradient(145deg, rgba(165,69,82,0.35), rgba(30,13,20,0.62))',
+            backdropFilter: 'blur(18px)',
+            WebkitBackdropFilter: 'blur(18px)',
+            color: theme.accentInk,
+            boxShadow: '0 16px 40px rgba(0,0,0,0.24)'
+        },
+
+        deliveryCoverNode: {
+            position: 'absolute',
+            top: '13%',
+            right: '9%',
+            width: '10px',
+            height: '10px',
+            borderRadius: '50%',
+            backgroundColor: theme.danger,
+            boxShadow: `0 0 0 6px ${theme.statuses.PENDENTE.bg}, 0 0 22px ${theme.danger}`
+        },
+
+        deliveryCoverCaption: {
+            position: 'absolute',
+            right: '2%',
+            bottom: '2%',
+            color: theme.inkSoft,
+            fontSize: '9px',
+            fontWeight: 700,
+            letterSpacing: '0.15em'
+        },
+
+        scrollCue: {
+            position: 'fixed',
+            right: 'clamp(18px, 3vw, 38px)',
+            bottom: 'clamp(18px, 3vh, 30px)',
+            zIndex: 1500,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            minHeight: '44px',
+            padding: '0 15px',
+            border: `1px solid ${theme.borderStrong}`,
+            borderRadius: '999px',
+            backgroundColor: 'rgba(39, 18, 27, 0.78)',
+            backgroundImage: 'linear-gradient(135deg, rgba(165,69,82,0.32), rgba(244,233,236,0.055))',
+            backdropFilter: 'blur(22px) saturate(165%)',
+            WebkitBackdropFilter: 'blur(22px) saturate(165%)',
+            color: theme.ink,
+            fontSize: '11px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 12px 34px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.12)'
         },
 
         brand: {
@@ -2640,9 +3238,61 @@ function getStyles(theme) {
         tableHeader: {
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'flex-end',
+            alignItems: 'center',
+            flexWrap: 'wrap',
             gap: '14px',
             marginBottom: '17px'
+        },
+
+        deliveryToolbar: {
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            flexWrap: 'wrap',
+            gap: '8px',
+            flex: '1 1 420px'
+        },
+
+        deliverySearch: {
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            flex: '1 1 250px',
+            maxWidth: '320px',
+            minWidth: '180px',
+            height: '36px',
+            boxSizing: 'border-box',
+            padding: '0 10px',
+            borderRadius: '10px',
+            border: `1px solid ${theme.borderStrong}`,
+            backgroundColor: theme.surfaceAlt,
+            color: theme.inkSoft
+        },
+
+        deliverySearchInput: {
+            flex: 1,
+            minWidth: 0,
+            width: '100%',
+            height: '100%',
+            padding: 0,
+            border: 'none',
+            outline: 'none',
+            background: 'transparent',
+            color: theme.ink,
+            fontSize: '11px'
+        },
+
+        deliveryStatusFilter: {
+            maxWidth: '100%',
+            height: '36px',
+            boxSizing: 'border-box',
+            padding: '0 10px',
+            borderRadius: '10px',
+            border: `1px solid ${theme.border}`,
+            backgroundColor: theme.surfaceAlt,
+            color: theme.ink,
+            fontSize: '11px',
+            cursor: 'pointer'
         },
 
         tableSubtitle: {

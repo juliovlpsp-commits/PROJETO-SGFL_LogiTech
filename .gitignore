@@ -1,5 +1,8 @@
 ### Maven ###
 target/
+/data/
+/portable-runtime/
+/sgfl-portatil.zip
 
 ### Node / Vite (frontend) ###
 node_modules/

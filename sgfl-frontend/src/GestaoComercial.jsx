@@ -240,13 +240,10 @@ export default function GestaoComercial() {
     };
 
     useEffect(() => {
-        if (aberto) {
-            carregarDados();
-        }
-    }, [
-        aberto,
-        carregarDados
-    ]);
+        if (!aberto) return undefined;
+        const timeout = window.setTimeout(carregarDados, 0);
+        return () => window.clearTimeout(timeout);
+    }, [aberto, carregarDados]);
 
     useEffect(() => () => {
         window.clearTimeout(fechamentoTimeoutRef.current);
@@ -609,9 +606,7 @@ export default function GestaoComercial() {
         [produtos]
     );
 
-    const estoqueDisponivel = (
-        produtoId
-    ) => {
+    const estoqueDisponivel = useCallback((produtoId) => {
         const produto =
             produtoPorId.get(
                 String(produtoId)
@@ -621,7 +616,7 @@ export default function GestaoComercial() {
             produto?.estoque
                 ?.quantidadeDisponivel ?? 0
         );
-    };
+    }, [produtoPorId]);
 
     const pedidoValido = useMemo(
         () => {
@@ -673,7 +668,7 @@ export default function GestaoComercial() {
         [
             clientePedido,
             itensPedido,
-            produtoPorId
+            estoqueDisponivel
         ]
     );
 

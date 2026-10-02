@@ -8,10 +8,11 @@ Sistema web com API REST em Spring Boot e frontend React para gestão de frota, 
 ## Tecnologias
 
 **Backend**
-- Java 17, Spring Boot 3.2.3 (Web, Data JPA, Security, Validation)
+- Java 17, Spring Boot 3.5.16 (Web, Data JPA, Security, Validation, Actuator)
 - PostgreSQL (produção/desenvolvimento), Flyway (migrações) e H2 em memória (testes gerais)
-- Testcontainers + Docker (apenas para o teste de migração, que sobe um PostgreSQL real)
-- Bucket4j (rate limiting) e logs estruturados em JSON
+- Testcontainers + Docker (PostgreSQL 15 e Redis reais nos testes de integração)
+- Redis compartilhado para rate limiting no Docker; Bucket4j em memória no modo portátil
+- Micrometer/Prometheus, health checks e logs estruturados em JSON
 - JWT (jjwt) para autenticação stateless
 - JUnit 5, Mockito, AssertJ, Spring Security Test
 - Maven
@@ -37,7 +38,7 @@ O código está separado em controllers, serviços, repositórios, entidades, DT
 - `GET /api/auth/session` — verifica se o cookie representa uma sessão válida.
 - `POST /api/auth/logout` — encerra a sessão removendo o cookie.
 
-O navegador envia o cookie automaticamente nas chamadas à API. O cookie é `HttpOnly`, `SameSite=Lax` e expira em 24h por padrão (configurável via `JWT_EXPIRATION_MS`). Em produção com HTTPS, configure `APP_COOKIE_SECURE=true`.
+O navegador envia o cookie JWT automaticamente nas chamadas à API. Ele é `HttpOnly`, `SameSite=Lax` e expira em 24h por padrão (configurável via `JWT_EXPIRATION_MS`). Um cookie CSRF separado é enviado pelo Axios como header `X-XSRF-TOKEN` em operações que alteram dados. Em produção com HTTPS, configure `APP_COOKIE_SECURE=true`.
 
 Sem token, ou com token inválido/expirado, a API responde **401**. Autenticado, mas sem permissão para a operação, responde **403**.
 
@@ -88,6 +89,8 @@ Depois do primeiro acesso, pode voltar `BOOTSTRAP_ADMIN_ENABLED` para `false`.
 
 Clientes, produtos e pedidos também usam `page` e `size` nas rotas de listagem, com 20 itens por padrão e máximo de 100. A resposta inclui `content`, `page`, `size`, `totalElements` e `totalPages`; a interface comercial oferece controles de página.
 
+Motoristas e veículos usam o mesmo contrato paginado e aceitam `q` para filtrar por nome/CPF ou placa/modelo. A busca de recursos na alocação consulta o servidor e continua encontrando registros além dos primeiros 100.
+
 Erros seguem sempre o mesmo formato:
 ```json
 {
@@ -106,7 +109,7 @@ Erros seguem sempre o mesmo formato:
 ### Pré-requisitos
 - JDK 17+
 - PostgreSQL em execução
-- Node.js 18+ (para o frontend)
+- Node.js 22+ (para compilar o frontend)
 ### 1. Configurar variáveis de ambiente
 
 Nada de senha ou segredo direto no `application.properties` — configure via variáveis de ambiente (as que não têm padrão são obrigatórias: a aplicação não sobe sem `DB_PASSWORD` e `JWT_SECRET`):
@@ -124,7 +127,9 @@ Nada de senha ou segredo direto no `application.properties` — configure via va
 | `JWT_EXPIRATION_MS` | Validade do token (ms) | `86400000` (24h) |
 | `FLYWAY_ENABLED` | Ativa execução de migrações automáticas | `true` |
 | `DDL_AUTO` | Estratégia de DDL do Hibernate | `validate` |
-| `RATE_LIMIT_ENABLED` | Habilita rate limiting por IP via Bucket4j | `true` |
+| `RATE_LIMIT_ENABLED` | Habilita rate limiting por IP | `true` |
+| `RATE_LIMIT_STORAGE` | Armazenamento dos contadores (`memory` ou `redis`) | `memory` (Compose: `redis`)
+| `REDIS_PASSWORD` | Senha opcional do Redis interno | vazio |
 | `RATE_LIMIT_AUTH_CAPACITY` | Limite de requisições em `/api/auth/**` | `15` por minuto |
 | `RATE_LIMIT_API_CAPACITY` | Limite de requisições gerais em `/api/**` | `120` por minuto |
 
@@ -138,11 +143,12 @@ O projeto possui orquestração completa via **Docker Compose**, subindo banco P
 
 ### Antes de subir: crie o arquivo `.env`
 
-Na raiz do projeto (ele já está no `.gitignore`; nunca o versione):
+Na raiz do projeto (ele já está no `.gitignore`; nunca o versione), copie `.env.example` e substitua os valores de exemplo:
 
 ```
 POSTGRES_PASSWORD=troque-esta-senha
 JWT_SECRET=troque-por-uma-chave-aleatoria-com-mais-de-32-caracteres
+REDIS_PASSWORD=use-outra-senha-forte
 BOOTSTRAP_ADMIN_ENABLED=true
 BOOTSTRAP_ADMIN_EMAIL=admin@suaempresa.com
 BOOTSTRAP_ADMIN_PASSWORD=uma-senha-forte
@@ -157,6 +163,7 @@ docker compose up --build -d
 - **Frontend (Web)**: [http://localhost:5173](http://localhost:5173) ou [http://localhost](http://localhost)
 - **Backend (API)**: [http://localhost:8080/api](http://localhost:8080/api)
 - **PostgreSQL**: `localhost:5432` (database `sgfl_db`, user `postgres`, senha definida por você em `POSTGRES_PASSWORD`)
+- **Redis**: privado na rede do Compose; os contadores compartilhados de rate limit não são expostos no host
 
 Para visualizar os logs:
 ```bash
@@ -167,6 +174,10 @@ Para parar os serviços:
 ```bash
 docker compose down
 ```
+
+Para métricas e alertas locais, inicie o Prometheus com `docker compose --profile observability up -d`; o painel fica em `http://localhost:9090`. A porta de gerenciamento do backend (8081) permanece apenas na rede Docker. Health, readiness/liveness e métricas ficam nessa porta.
+
+Procedimentos de backup, restauração e operação estão em [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
 
 ---
 
@@ -231,7 +242,7 @@ mvn test
 .\mvnw test
 ```
 
-Os testes gerais usam banco H2 em memória — não tocam no seu Postgres local. **O `FlywayMigrationTest` exige o Docker rodando** (Docker Desktop aberto), pois sobe um PostgreSQL real via Testcontainers; sem Docker ele falha com "Could not find a valid Docker environment". Cobrem:
+Os testes gerais usam banco H2 em memória — não tocam no seu Postgres local. Testes Testcontainers usam PostgreSQL 15 e Redis reais quando Docker está disponível; sem Docker, os testes de integração de container são marcados como ignorados. Cobrem:
 - **Unitário**: geração/validação de JWT (`JwtServiceTest`)
 - **Repositório**: paginação e ordenação estável da listagem de entregas (`EntregaRepositoryTest`)
 - **Controller**: validação de entrada, exclusão, erros (`EntregaControllerTest`)
@@ -239,6 +250,8 @@ Os testes gerais usam banco H2 em memória — não tocam no seu Postgres local.
 - **Segurança/negócio**: bootstrap do admin (`BootstrapAdminInitializerTest`), CPF (`MotoristaControllerCpfTest`), tradução de erros de constraint (`GlobalExceptionHandlerTest`)
 - **Migração Flyway**: aplica todas as migrations em um PostgreSQL real e confere unicidade, índices e ausência de dados duplicados (`FlywayMigrationTest`)
 - **Rate Limiting**: validação de controle de vazão e resposta 429 (`RateLimitingFilterTest`)
+- **Rate Limiting distribuído**: duas instâncias compartilham tokens no Redis (`RedisRateLimiterIntegrationTest`)
+- **Frontend**: serialização dos filtros de página, status e busca (`npm test`)
 
 ---
 
@@ -264,15 +277,16 @@ Os testes gerais usam banco H2 em memória — não tocam no seu Postgres local.
 - O `requestId` é devolvido no header HTTP `X-Request-ID` e incluído nas respostas de erro do `GlobalExceptionHandler`, simplificando o rastreamento ponta a ponta.
 - Em desenvolvimento local, mantém formato colorido legível no console.
 
-### 3. Rate Limiting (Bucket4j)
-- Proteção contra ataques de força bruta, abuso de recursos e DoS usando o algoritmo Token Bucket com **Bucket4j**.
+### 3. Rate Limiting
+- Proteção contra ataques de força bruta e abuso de recursos usando o algoritmo Token Bucket.
 - Políticas configuráveis e diferenciadas:
   - **Rotas de Autenticação (`/api/auth/**`)**: limite restritivo de 15 requisições/min por IP.
   - **Demais Rotas da API (`/api/**`)**: limite de 120 requisições/min por IP.
 - Headers devolvidos em cada resposta:
   - `X-Rate-Limit-Remaining`: tokens restantes na janela.
   - `Retry-After`: tempo em segundos para tentar novamente caso exceda.
-- Os contadores são mantidos em memória por instância e buckets ociosos são removidos. Se o backend for escalado para múltiplas réplicas, use um armazenamento compartilhado para que os limites sejam globais.
+- No Compose, cada requisição atualiza atomicamente um bucket no Redis usando o relógio do próprio Redis. Réplicas do backend compartilham os mesmos limites. O modo portátil usa buckets locais em memória e serve a uma única instância.
+- Se o Redis estiver indisponível no modo compartilhado, requisições de API falham fechadas com `503` para não remover a proteção silenciosamente.
 - Resposta padronizada com HTTP `429 Too Many Requests`:
 ```json
 {
@@ -291,4 +305,9 @@ Os testes gerais usam banco H2 em memória — não tocam no seu Postgres local.
 - [x] Containerização (Docker & Docker Compose)
 - [x] Logging estruturado (Logstash JSON + Correlation ID)
 - [x] Rate limiting (Bucket4j por IP)
+- [x] Limites compartilhados por Redis e modo portátil em memória
+- [x] CSRF para autenticação por cookie JWT
+- [x] Health/readiness, métricas Prometheus e alertas operacionais
+- [x] Scripts seguros de backup e restauração do PostgreSQL
+- [x] Busca e paginação de motoristas e veículos
 - [x] Migrações versionadas de banco (Flyway) no lugar de `ddl-auto=update`

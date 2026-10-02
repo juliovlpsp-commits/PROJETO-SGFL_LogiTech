@@ -1,7 +1,7 @@
 # ==========================================
 # Estágio 1: Build da aplicação React + Vite
 # ==========================================
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Instala dependências aproveitando o cache do Docker
@@ -19,7 +19,7 @@ RUN npm run build
 # ==========================================
 # Estágio 2: Servidor Web Nginx de produção
 # ==========================================
-FROM nginx:1.25-alpine AS runner
+FROM nginx:stable-alpine AS runner
 
 # Substitui a configuração padrão do Nginx pela personalizada
 COPY nginx.conf /etc/nginx/conf.d/default.conf

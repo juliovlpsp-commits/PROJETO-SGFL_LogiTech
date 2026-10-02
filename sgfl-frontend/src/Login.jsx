@@ -24,7 +24,7 @@ export default function Login({ onLoginSuccess }) {
         setCarregando(true);
 
         try {
-            const response = await api.post('/auth/login', {
+            await api.post('/auth/login', {
                 username: email.trim(),
                 password: senha
             });

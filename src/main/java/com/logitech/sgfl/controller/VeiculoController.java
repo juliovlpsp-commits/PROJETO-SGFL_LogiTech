@@ -3,6 +3,8 @@ package com.logitech.sgfl.controller;
 import com.logitech.sgfl.dto.CaminhaoRequest;
 import com.logitech.sgfl.dto.FurgaoRequest;
 import com.logitech.sgfl.dto.VeiculoResponse;
+import com.logitech.sgfl.config.Pagination;
+import com.logitech.sgfl.dto.PageResponse;
 import com.logitech.sgfl.exceptions.RecursoNaoEncontradoException;
 import com.logitech.sgfl.me.Caminhao;
 import com.logitech.sgfl.me.Furgao;
@@ -14,7 +16,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @RestController
 @RequestMapping("/api/veiculos")
@@ -32,8 +35,23 @@ public class VeiculoController {
     }
 
     @GetMapping
-    public ResponseEntity<List<VeiculoResponse>> listarTodos() {
-        return ResponseEntity.ok(veiculoRepository.findAll().stream().map(VeiculoResponse::from).toList());
+    public PageResponse<VeiculoResponse> listarTodos(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String q
+    ) {
+        Pageable pageable = Pagination.request(page, size);
+        String termo = limitarTermo(q);
+        Page<Veiculo> veiculos = termo == null || termo.isBlank()
+                ? veiculoRepository.findAll(pageable)
+                : veiculoRepository.findByPlacaContainingIgnoreCaseOrModeloContainingIgnoreCase(termo, termo, pageable);
+        return PageResponse.from(veiculos, VeiculoResponse::from);
+    }
+
+    private String limitarTermo(String q) {
+        if (q == null) return null;
+        String termo = q.trim();
+        return termo.substring(0, Math.min(termo.length(), 100));
     }
 
     @PostMapping("/caminhao")

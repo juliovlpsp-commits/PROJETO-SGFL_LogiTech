@@ -14,12 +14,12 @@ import java.sql.Statement;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 class FlywayMigrationTest {
 
     @Container
     static PostgreSQLContainer postgres =
-            new PostgreSQLContainer("postgres:16-alpine")
+            new PostgreSQLContainer("postgres:15-alpine")
                     .withDatabaseName("flyway_test")
                     .withUsername("postgres")
                     .withPassword("postgres");

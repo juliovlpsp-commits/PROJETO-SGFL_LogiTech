@@ -1,10 +1,6 @@
 package com.logitech.sgfl.ratelimit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.bucket4j.Bandwidth;
-import io.github.bucket4j.Bucket;
-import io.github.bucket4j.ConsumptionProbe;
-import io.github.bucket4j.Refill;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,13 +16,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Component
 @Order(-100) // Executa logo após o StructuredLoggingFilter
@@ -51,26 +43,11 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     @Value("${ratelimit.api.tokens-per-minute:120}")
     private long apiTokensPerMinute;
 
-    /** Buckets sem uso por este tempo são descartados, para o mapa não crescer indefinidamente. */
-    private static final long IDLE_EVICTION_NANOS = TimeUnit.MINUTES.toNanos(10);
-    private static final long CLEANUP_INTERVAL_NANOS = TimeUnit.MINUTES.toNanos(1);
+    private final RateLimiter rateLimiter;
 
-    private final Map<String, BucketEntry> authBuckets = new ConcurrentHashMap<>();
-    private final Map<String, BucketEntry> apiBuckets = new ConcurrentHashMap<>();
-    private final AtomicLong lastCleanupNanos = new AtomicLong(System.nanoTime());
-
-    private static final class BucketEntry {
-        private final Bucket bucket;
-        private volatile long lastAccessNanos;
-
-        private BucketEntry(Bucket bucket) {
-            this.bucket = bucket;
-            this.lastAccessNanos = System.nanoTime();
-        }
-    }
-
-    public RateLimitingFilter(ObjectMapper objectMapper) {
+    public RateLimitingFilter(ObjectMapper objectMapper, RateLimiter rateLimiter) {
         this.objectMapper = objectMapper;
+        this.rateLimiter = rateLimiter;
     }
 
     @Override
@@ -88,73 +65,59 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             return;
         }
 
-        evictIdleBucketsIfNeeded();
-
         String clientIp = resolveClientIp(request);
-        BucketEntry entry;
-
+        String scope;
+        long capacity;
+        long tokensPerMinute;
         if (path.startsWith("/api/auth/")) {
-            entry = authBuckets.computeIfAbsent(clientIp, k -> new BucketEntry(createBucket(authCapacity, authTokensPerMinute)));
+            scope = "auth";
+            capacity = authCapacity;
+            tokensPerMinute = authTokensPerMinute;
         } else {
-            entry = apiBuckets.computeIfAbsent(clientIp, k -> new BucketEntry(createBucket(apiCapacity, apiTokensPerMinute)));
+            scope = "api";
+            capacity = apiCapacity;
+            tokensPerMinute = apiTokensPerMinute;
         }
 
-        entry.lastAccessNanos = System.nanoTime();
-        Bucket bucket = entry.bucket;
-
-        ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
-
-        if (probe.isConsumed()) {
-            response.setHeader("X-Rate-Limit-Remaining", String.valueOf(probe.getRemainingTokens()));
-            filterChain.doFilter(request, response);
-        } else {
-            long waitForRefillNanos = probe.getNanosToWaitForRefill();
-            long retryAfterSeconds = Math.max(1, TimeUnit.NANOSECONDS.toSeconds(waitForRefillNanos));
-
-            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            response.setCharacterEncoding("UTF-8");
-            response.setHeader("Retry-After", String.valueOf(retryAfterSeconds));
-            response.setHeader("X-Rate-Limit-Remaining", "0");
-
-            log.warn("Rate limit excedido para IP {} na rota {}. Tente novamente em {}s", clientIp, path, retryAfterSeconds);
-
-            Map<String, Object> body = new LinkedHashMap<>();
-            body.put("timestamp", LocalDateTime.now().toString());
-            body.put("status", HttpStatus.TOO_MANY_REQUESTS.value());
-            body.put("error", "Too Many Requests");
-            body.put("message", "Limite de requisições excedido. Tente novamente em " + retryAfterSeconds + " segundo(s).");
-
-            String requestId = MDC.get("requestId");
-            if (requestId != null) {
-                body.put("requestId", requestId);
-            }
-
-            response.getWriter().write(objectMapper.writeValueAsString(body));
-        }
-    }
-
-    private Bucket createBucket(long capacity, long tokensPerMinute) {
-        Bandwidth limit = Bandwidth.builder()
-                .capacity(capacity)
-                .refillGreedy(tokensPerMinute, Duration.ofMinutes(1))
-                .build();
-        return Bucket.builder().addLimit(limit).build();
-    }
-
-    /**
-     * Remove periodicamente (no máximo 1x por minuto) os buckets ociosos.
-     */
-    private void evictIdleBucketsIfNeeded() {
-        long now = System.nanoTime();
-        long last = lastCleanupNanos.get();
-
-        if (now - last < CLEANUP_INTERVAL_NANOS || !lastCleanupNanos.compareAndSet(last, now)) {
+        RateLimiter.RateLimitDecision decision;
+        try {
+            decision = rateLimiter.tryConsume(scope, clientIp, capacity, tokensPerMinute);
+        } catch (RuntimeException exception) {
+            // Shared storage failures fail closed: a Redis outage must not silently
+            // disable brute-force protection on every backend replica.
+            log.error("Rate limiter indisponível; bloqueando requisição protegida", exception);
+            escreverErro(response, HttpStatus.SERVICE_UNAVAILABLE,
+                    "Proteção temporariamente indisponível. Tente novamente em instantes.", 1);
             return;
         }
 
-        authBuckets.values().removeIf(e -> now - e.lastAccessNanos > IDLE_EVICTION_NANOS);
-        apiBuckets.values().removeIf(e -> now - e.lastAccessNanos > IDLE_EVICTION_NANOS);
+        if (decision.allowed()) {
+            response.setHeader("X-Rate-Limit-Remaining", String.valueOf(decision.remainingTokens()));
+            filterChain.doFilter(request, response);
+        } else {
+            long retryAfterSeconds = Math.max(1, (decision.retryAfterMillis() + 999) / 1000);
+            log.warn("Rate limit excedido para IP {} na rota {}. Tente novamente em {}s", clientIp, path, retryAfterSeconds);
+            response.setHeader("X-Rate-Limit-Remaining", "0");
+            escreverErro(response, HttpStatus.TOO_MANY_REQUESTS,
+                    "Limite de requisições excedido. Tente novamente em " + retryAfterSeconds + " segundo(s).",
+                    retryAfterSeconds);
+        }
+    }
+
+    private void escreverErro(HttpServletResponse response, HttpStatus status, String message, long retryAfterSeconds)
+            throws IOException {
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
+        response.setHeader("Retry-After", String.valueOf(retryAfterSeconds));
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", status.value());
+        body.put("error", status.getReasonPhrase());
+        body.put("message", message);
+        String requestId = MDC.get("requestId");
+        if (requestId != null) body.put("requestId", requestId);
+        response.getWriter().write(objectMapper.writeValueAsString(body));
     }
 
     /**

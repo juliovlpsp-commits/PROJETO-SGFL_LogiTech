@@ -2,6 +2,8 @@ package com.logitech.sgfl.controller;
 
 import com.logitech.sgfl.dto.MotoristaRequest;
 import com.logitech.sgfl.dto.MotoristaResponse;
+import com.logitech.sgfl.config.Pagination;
+import com.logitech.sgfl.dto.PageResponse;
 import com.logitech.sgfl.exceptions.RecursoNaoEncontradoException;
 import com.logitech.sgfl.me.Motorista;
 import com.logitech.sgfl.repository.EntregaRepository;
@@ -11,7 +13,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @RestController
 @RequestMapping("/api/motoristas")
@@ -29,8 +32,23 @@ public class MotoristaController {
     }
 
     @GetMapping
-    public ResponseEntity<List<MotoristaResponse>> listarTodos() {
-        return ResponseEntity.ok(motoristaRepository.findAll().stream().map(MotoristaResponse::from).toList());
+    public PageResponse<MotoristaResponse> listarTodos(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String q
+    ) {
+        Pageable pageable = Pagination.request(page, size);
+        String termo = limitarTermo(q);
+        Page<Motorista> motoristas = termo == null || termo.isBlank()
+                ? motoristaRepository.findAll(pageable)
+                : motoristaRepository.findByNomeContainingIgnoreCaseOrCpfContaining(termo, termo, pageable);
+        return PageResponse.from(motoristas, MotoristaResponse::from);
+    }
+
+    private String limitarTermo(String q) {
+        if (q == null) return null;
+        String termo = q.trim();
+        return termo.substring(0, Math.min(termo.length(), 100));
     }
 
     @PostMapping

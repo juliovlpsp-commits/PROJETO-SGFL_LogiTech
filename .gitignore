@@ -1,6 +1,7 @@
 ### Maven ###
 target/
 /data/
+/backups/
 /portable-runtime/
 /sgfl-portatil.zip
 

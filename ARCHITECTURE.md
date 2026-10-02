@@ -5,7 +5,7 @@ O SGFL é uma aplicação web em três partes: interface React, API REST em Spri
 ```mermaid
 flowchart LR
     U[Usuário] --> FE[React + Vite]
-    FE -->|/api + JWT| NG[Nginx]
+    FE -->|/api + cookies JWT e CSRF| NG[Nginx]
     NG --> API[Spring Boot]
     API --> SEC[Spring Security + JWT]
     API --> CTRL[Controllers REST]
@@ -13,13 +13,15 @@ flowchart LR
     SVC --> REP[Spring Data JPA]
     REP --> DB[(PostgreSQL)]
     MIG[Flyway] --> DB
-    API --> OBS[Logs estruturados]
-    API --> RL[Rate limiting]
+    API --> OBS[Logs estruturados + Actuator]
+    API --> RL[Rate limit Token Bucket]
+    RL --> REDIS[(Redis compartilhado no Docker)]
+    PROM[Prometheus opcional] -->|8081 interno| API
 ```
 
 ## Frontend
 
-O frontend em `sgfl-frontend/` usa React, Vite e Axios. `App.jsx` controla a sessão e compõe login, dashboard de frota/entregas e gestão comercial. `api.js` centraliza chamadas Axios e o tratamento de respostas 401. `Dashboard.jsx` implementa as telas de frota e entregas; `GestaoComercial.jsx` implementa clientes, produtos e pedidos; `CadastroRecursos.jsx` cuida dos cadastros de frota.
+O frontend em `sgfl-frontend/` usa React, Vite e Axios. `App.jsx` controla a sessão e compõe login, dashboard de frota/entregas e gestão comercial. `api.js` centraliza chamadas Axios, cookies e tratamento de respostas 401. A busca paginada de entregas vive no hook `useEntregaList.js`, separado do dashboard. `Dashboard.jsx` compõe as telas de frota e entregas; `GestaoComercial.jsx` implementa clientes, produtos e pedidos; `CadastroRecursos.jsx` cuida dos cadastros de frota.
 
 Em desenvolvimento o Vite serve a interface. No Docker, o build estático é servido por Nginx, que também encaminha `/api/` ao backend.
 
@@ -42,7 +44,7 @@ O backend fica em `src/main/java/com/logitech/sgfl/` e organiza o código por re
 
 O domínio comercial inclui `Cliente`, `Produto`, `Estoque`, `Pedido` e `ItemPedido`. O domínio logístico inclui `Veiculo` (com `Caminhao` e `Furgao`), `Motorista` e `Entrega`. Pedidos reservam estoque em transação; entregas validam capacidade, CNH e disponibilidade de recursos.
 
-Listagens de clientes, produtos e pedidos usam páginas de 20 itens por padrão, aceitam `page` e `size` e limitam páginas a 100 itens. Entregas também são paginadas. Respostas de cliente, produto, pedido, motorista, veículo e entrega passam por DTOs; a forma dos dados HTTP não depende diretamente das entidades JPA.
+Listagens de clientes, produtos, pedidos, motoristas, veículos e entregas usam páginas de 20 itens por padrão, aceitam `page` e limitam páginas a 100 itens. Motoristas e veículos também aceitam `q` para filtrar por nome/CPF ou placa/modelo. Respostas de listagem usam um contrato paginado; DTOs mantêm a forma da API separada das entidades JPA.
 
 ## Persistência e integridade
 
@@ -50,11 +52,13 @@ PostgreSQL é o banco de execução. Flyway aplica scripts versionados em `src/m
 
 ## Segurança e operação
 
-O login público devolve JWT; as demais rotas exigem autenticação. Spring Security aplica autorização por perfil e BCrypt protege as senhas. O filtro de rate limiting protege rotas de autenticação e API. Logs estruturados incluem request ID para rastrear chamadas.
+O login público configura JWT em cookie `HttpOnly`; as demais rotas exigem autenticação. Spring Security aplica autorização por perfil e BCrypt protege as senhas. Um cookie CSRF separado protege operações mutáveis e o frontend o envia pelo header `X-XSRF-TOKEN`. CORS permite somente origens explicitamente configuradas. Logs estruturados incluem request ID para rastrear chamadas.
 
-O JWT do navegador fica em cookie `HttpOnly`, `SameSite=Lax`, com validade alinhada à expiração do token. Defina `APP_COOKIE_SECURE=true` quando o tráfego externo usar HTTPS. O rate limiter atual usa buckets em memória por instância e remove entradas ociosas; uma implantação com várias réplicas precisa de armazenamento compartilhado para os contadores.
+O JWT do navegador fica em cookie `HttpOnly`, `SameSite=Lax`, com validade alinhada à expiração do token. Defina `APP_COOKIE_SECURE=true` quando o tráfego externo usar HTTPS. No Compose, o rate limiter usa token buckets atômicos no Redis, compartilhados entre instâncias; a distribuição portátil mantém buckets em memória para uma única instância. Se o Redis falhar, o backend fecha as chamadas protegidas com `503` em vez de desativar a proteção.
 
-O `docker-compose.yml` sobe PostgreSQL, backend e frontend/Nginx. Segredos são fornecidos por variáveis de ambiente, não pelo código-fonte. A pipeline em `.github/workflows/ci.yml` executa testes Maven e lint/build do frontend.
+O `docker-compose.yml` sobe PostgreSQL, Redis, backend e frontend/Nginx. O backend executa health/readiness e Prometheus em uma porta de gerenciamento interna (`8081`), sem publicação no host. O perfil opcional `observability` sobe Prometheus em `localhost:9090` com regras iniciais para disponibilidade, erros 5xx e saturação do pool JDBC. Segredos são fornecidos por variáveis de ambiente; Dependabot acompanha Maven, npm, imagens Docker e GitHub Actions.
+
+Scripts para backup e restauração estão em `scripts/`; a rotina faz backup de segurança antes de restaurar e pede confirmação explícita. Veja `docs/OPERATIONS.md` para limites e procedimentos. O backup deve ser copiado para armazenamento externo protegido e a restauração testada periodicamente.
 
 ## Estado da documentação
 

@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * física do banco (que o Postgres pode reorganizar após um UPDATE via MVCC);
  * a correção é sempre pedir ORDER BY id explicitamente.
  */
-@DataJpaTest
+@DataJpaTest(showSql = false)
 @ActiveProfiles("test")
 class EntregaRepositoryTest {
 

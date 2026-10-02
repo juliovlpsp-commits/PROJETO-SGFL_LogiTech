@@ -37,6 +37,9 @@ class AutenticacaoIntegrationTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    private String csrfCookie;
+    private String csrfToken;
+
     private static final String EMAIL = "teste@exemplo.com";
     private static final String SENHA = "senha123";
 
@@ -125,8 +128,9 @@ class AutenticacaoIntegrationTest {
 
     @Test
     void cadastroPublicoDeveCriarUsuarioComoOperador() {
-        ResponseEntity<String> resposta = restTemplate.postForEntity(
-                "/api/auth/registrar", new RegistroRequest("novo@exemplo.com", "senhaSegura1"), String.class);
+        ResponseEntity<String> resposta = restTemplate.exchange(
+                "/api/auth/registrar", HttpMethod.POST,
+                new HttpEntity<>(new RegistroRequest("novo@exemplo.com", "senhaSegura1"), csrfHeaders()), String.class);
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(usuarioRepository.findByEmail("novo@exemplo.com"))
@@ -137,8 +141,9 @@ class AutenticacaoIntegrationTest {
 
     @Test
     void cadastroPublicoDeveRecusarSenhaCurta() {
-        ResponseEntity<String> resposta = restTemplate.postForEntity(
-                "/api/auth/registrar", new RegistroRequest("novo@exemplo.com", "123"), String.class);
+        ResponseEntity<String> resposta = restTemplate.exchange(
+                "/api/auth/registrar", HttpMethod.POST,
+                new HttpEntity<>(new RegistroRequest("novo@exemplo.com", "123"), csrfHeaders()), String.class);
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(usuarioRepository.findByEmail("novo@exemplo.com")).isEmpty();
@@ -146,8 +151,9 @@ class AutenticacaoIntegrationTest {
 
     @Test
     void loginSemCredenciaisDeveRetornar400() {
-        ResponseEntity<String> resposta = restTemplate.postForEntity(
-                "/api/auth/login", new LoginRequest("", ""), String.class);
+        ResponseEntity<String> resposta = restTemplate.exchange(
+                "/api/auth/login", HttpMethod.POST,
+                new HttpEntity<>(new LoginRequest("", ""), csrfHeaders()), String.class);
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
@@ -162,14 +168,30 @@ class AutenticacaoIntegrationTest {
     }
 
     private String fazerLogin(String email, String senha) {
-        ResponseEntity<Void> resposta = restTemplate.postForEntity(
-                "/api/auth/login", new LoginRequest(email, senha), Void.class);
+        ResponseEntity<Void> resposta = restTemplate.exchange(
+                "/api/auth/login", HttpMethod.POST,
+                new HttpEntity<>(new LoginRequest(email, senha), csrfHeaders()), Void.class);
         return cookieDaResposta(resposta);
     }
 
     private HttpHeaders comCookie(String cookie) {
+        HttpHeaders headers = csrfHeaders();
+        headers.set(HttpHeaders.COOKIE, headers.getFirst(HttpHeaders.COOKIE) + "; " + cookie);
+        return headers;
+    }
+
+    private HttpHeaders csrfHeaders() {
+        if (csrfCookie == null) {
+            ResponseEntity<String> resposta = restTemplate.getForEntity("/api/auth/csrf", String.class);
+            String setCookie = resposta.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
+            assertThat(setCookie).contains("XSRF-TOKEN=");
+            csrfCookie = setCookie.split(";", 2)[0];
+            csrfToken = csrfCookie.substring("XSRF-TOKEN=".length());
+        }
+
         HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.COOKIE, cookie);
+        headers.set(HttpHeaders.COOKIE, csrfCookie);
+        headers.set("X-XSRF-TOKEN", csrfToken);
         return headers;
     }
 
@@ -183,8 +205,8 @@ class AutenticacaoIntegrationTest {
     void deveFazerLoginComEmailEConfigurarCookieSeguro() {
         LoginRequest request = new LoginRequest(EMAIL, SENHA);
 
-        ResponseEntity<Void> resposta =
-                restTemplate.postForEntity("/api/auth/login", request, Void.class);
+        ResponseEntity<Void> resposta = restTemplate.exchange(
+                "/api/auth/login", HttpMethod.POST, new HttpEntity<>(request, csrfHeaders()), Void.class);
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(resposta.getHeaders().getFirst(HttpHeaders.SET_COOKIE))
@@ -195,24 +217,30 @@ class AutenticacaoIntegrationTest {
     void deveRecusarLoginComSenhaErrada() {
         LoginRequest request = new LoginRequest(EMAIL, "senha-errada");
 
-        ResponseEntity<String> resposta =
-                restTemplate.postForEntity("/api/auth/login", request, String.class);
+        ResponseEntity<String> resposta = restTemplate.exchange(
+                "/api/auth/login", HttpMethod.POST, new HttpEntity<>(request, csrfHeaders()), String.class);
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
     @Test
     void deveAcessarRotaProtegidaUsandoCookieDoLogin() {
-        LoginRequest loginRequest = new LoginRequest(EMAIL, SENHA);
-        ResponseEntity<Void> loginResposta =
-                restTemplate.postForEntity("/api/auth/login", loginRequest, Void.class);
-
-        HttpHeaders headers = comCookie(cookieDaResposta(loginResposta));
+        String cookie = fazerLogin(EMAIL, SENHA);
+        HttpHeaders headers = comCookie(cookie);
         HttpEntity<Void> entity = new HttpEntity<>(headers);
 
         ResponseEntity<String> resposta =
                 restTemplate.exchange("/api/entregas", HttpMethod.GET, entity, String.class);
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    void deveBloquearCadastroSemTokenCsrf() {
+        ResponseEntity<String> resposta = restTemplate.postForEntity(
+                "/api/auth/registrar", new RegistroRequest("csrf@exemplo.com", "senhaSegura1"), String.class);
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(usuarioRepository.findByEmail("csrf@exemplo.com")).isEmpty();
     }
 }

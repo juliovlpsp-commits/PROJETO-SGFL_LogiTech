@@ -11,7 +11,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
 
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -22,6 +22,21 @@ services:
       timeout: 5s
       retries: 5
 
+    networks:
+      - sgfl-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: sgfl-redis
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    command: ["sh", "-c", "if [ -n \"$$REDIS_PASSWORD\" ]; then exec redis-server --save \"\" --appendonly no --requirepass \"$$REDIS_PASSWORD\"; else exec redis-server --save \"\" --appendonly no; fi"]
+    healthcheck:
+      test: ["CMD-SHELL", "if [ -n \"$$REDIS_PASSWORD\" ]; then redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping; else redis-cli ping; fi"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     networks:
       - sgfl-network
 
@@ -37,6 +52,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
 
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-sgfl_db}
@@ -51,8 +68,14 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
       APP_COOKIE_SECURE: ${APP_COOKIE_SECURE:-false}
+      MANAGEMENT_SERVER_PORT: "8081"
+      MANAGEMENT_SERVER_ADDRESS: 0.0.0.0
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: "6379"
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:-}
 
       RATE_LIMIT_ENABLED: "true"
+      RATE_LIMIT_STORAGE: redis
       RATE_LIMIT_AUTH_CAPACITY: ${RATE_LIMIT_AUTH_CAPACITY:-15}
       RATE_LIMIT_AUTH_TOKENS: ${RATE_LIMIT_AUTH_TOKENS:-15}
       RATE_LIMIT_API_CAPACITY: ${RATE_LIMIT_API_CAPACITY:-120}
@@ -65,6 +88,13 @@ services:
 
     ports:
       - "8080:8080"
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/actuator/health/readiness > /dev/null"]
+      interval: 10s
+      timeout: 5s
+      start_period: 45s
+      retries: 10
 
     networks:
       - sgfl-network
@@ -82,7 +112,8 @@ services:
     restart: unless-stopped
 
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
     ports:
       - "5173:80"
@@ -91,9 +122,31 @@ services:
     networks:
       - sgfl-network
 
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    container_name: sgfl-prometheus
+    profiles: ["observability"]
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - sgfl-network
+
 
 volumes:
   postgres_data:
+    driver: local
+  prometheus_data:
     driver: local
 
 

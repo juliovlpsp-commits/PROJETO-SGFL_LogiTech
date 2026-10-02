@@ -6,6 +6,7 @@ import api from './api';
 
 export default function App() {
     const [autenticado, setAutenticado] = useState(false);
+    const [inicializado, setInicializado] = useState(false);
 
     const handleLoginSuccess = () => {
         setAutenticado(true);
@@ -22,9 +23,12 @@ export default function App() {
     };
 
     useEffect(() => {
-        api.get('/auth/session')
+        api.get('/auth/csrf')
+            .catch(() => {})
+            .then(() => api.get('/auth/session'))
             .then(() => setAutenticado(true))
-            .catch(() => setAutenticado(false));
+            .catch(() => setAutenticado(false))
+            .finally(() => setInicializado(true));
 
         const aoExpirar = () => {
             setAutenticado(false);
@@ -44,7 +48,12 @@ export default function App() {
 
     return (
         <div>
-            {!autenticado ? (
+            {!inicializado ? (
+                <div className="sgfl-app-loading" role="status" aria-live="polite"
+                    style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
+                    Carregando aplicação…
+                </div>
+            ) : !autenticado ? (
                 <Login
                     onLoginSuccess={
                         handleLoginSuccess

@@ -1,5 +1,8 @@
 name: CI
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [ "master", "main" ]
@@ -9,6 +12,7 @@ on:
 jobs:
   backend-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Baixar código
         uses: actions/checkout@v4
@@ -21,8 +25,8 @@ jobs:
           cache: maven
 
       # O runner do GitHub já tem Docker, necessário para o FlywayMigrationTest (Testcontainers).
-      - name: Rodar testes automatizados (Maven + H2 + Testcontainers/PostgreSQL)
-        run: mvn -B test
+      - name: Validar backend e empacotar (testes H2 + Testcontainers/PostgreSQL e Redis)
+        run: mvn -B verify
 
       - name: Publicar relatório de testes
         if: always()
@@ -33,6 +37,7 @@ jobs:
 
   frontend-build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: sgfl-frontend
@@ -52,6 +57,9 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Testes do frontend
+        run: npm test
 
       - name: Build de produção
         run: npm run build

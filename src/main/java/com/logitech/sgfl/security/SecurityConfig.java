@@ -11,7 +11,6 @@ import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -19,6 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -34,6 +34,9 @@ public class SecurityConfig {
 
     @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:3000}")
     private List<String> allowedOrigins;
+
+    @Value("${app.cookie.secure:false}")
+    private boolean cookieSecure;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthFilter,
@@ -54,8 +57,9 @@ public class SecurityConfig {
                                 corsConfigurationSource()
                         )
                 )
-                .csrf(
-                        AbstractHttpConfigurer::disable
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(csrfTokenRepository())
+                        .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
                 )
                 .authorizeHttpRequests(auth -> auth
 
@@ -71,6 +75,10 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/error"
                         ).permitAll()
+
+                        .requestMatchers("/actuator/health/**", "/actuator/prometheus").permitAll()
+
+                        .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
 
                         .requestMatchers(HttpMethod.GET, "/api/auth/session")
                         .authenticated()
@@ -165,6 +173,14 @@ public class SecurityConfig {
     }
 
     @Bean
+    public CookieCsrfTokenRepository csrfTokenRepository() {
+        CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        repository.setCookiePath("/");
+        repository.setCookieCustomizer(cookie -> cookie.secure(cookieSecure).sameSite("Lax"));
+        return repository;
+    }
+
+    @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 
         CorsConfiguration configuration =
@@ -188,7 +204,9 @@ public class SecurityConfig {
         configuration.setAllowedHeaders(
                 List.of(
                         "Authorization",
-                        "Content-Type"
+                        "Content-Type",
+                        "X-XSRF-TOKEN",
+                        "X-Request-ID"
                 )
         );
 
@@ -208,12 +226,7 @@ public class SecurityConfig {
     @Bean
     public AuthenticationProvider authenticationProvider() {
 
-        DaoAuthenticationProvider authProvider =
-                new DaoAuthenticationProvider();
-
-        authProvider.setUserDetailsService(
-                userDetailsService
-        );
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
 
         authProvider.setPasswordEncoder(
                 passwordEncoder()

@@ -23,7 +23,7 @@ class RateLimitingFilterTest {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        rateLimitingFilter = new RateLimitingFilter(objectMapper);
+        rateLimitingFilter = new RateLimitingFilter(objectMapper, new InMemoryRateLimiter());
         filterChain = mock(FilterChain.class);
 
         ReflectionTestUtils.setField(rateLimitingFilter, "enabled", true);

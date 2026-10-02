@@ -1,0 +1,33 @@
+groups:
+  - name: sgfl-availability
+    rules:
+      - alert: SGFLBackendDown
+        expr: up{job="sgfl-backend"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: API SGFL indisponível
+          description: Prometheus não consegue coletar métricas do backend há 2 minutos.
+
+      - alert: SGFLHighServerErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{job="sgfl-backend",status=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(http_server_requests_seconds_count{job="sgfl-backend"}[5m])), 0.001)
+          > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Taxa de erros 5xx elevada no SGFL
+          description: Mais de 5% das respostas HTTP estão em erro há 5 minutos.
+
+      - alert: SGFLDatabasePoolNearLimit
+        expr: hikaricp_connections_active{job="sgfl-backend"} / clamp_min(hikaricp_connections_max{job="sgfl-backend"}, 1) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Pool de conexões do PostgreSQL perto do limite
+          description: Mais de 90% das conexões do pool estão ocupadas há 5 minutos.

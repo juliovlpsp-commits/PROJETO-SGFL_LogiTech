@@ -2,6 +2,7 @@ package com.logitech.sgfl.controller;
 
 import com.logitech.sgfl.dto.EntregaRequest;
 import com.logitech.sgfl.dto.EntregaResponse;
+import com.logitech.sgfl.dto.PageResponse;
 import com.logitech.sgfl.dto.StatusUpdateRequest;
 import com.logitech.sgfl.enums.StatusEntrega;
 import com.logitech.sgfl.exceptions.RecursoNaoEncontradoException;
@@ -40,7 +41,7 @@ public class EntregaController {
      * Lista entregas de forma paginada.
      */
     @GetMapping
-    public Page<EntregaResponse> listar(
+    public PageResponse<EntregaResponse> listar(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "" + TAMANHO_PAGINA_PADRAO) int size,
             @RequestParam(required = false) StatusEntrega status,
@@ -59,8 +60,8 @@ public class EntregaController {
                         Sort.by("id").ascending()
                 );
 
-        return entregaRepository.findAll(EntregaSpecifications.filtrar(status, q), pageable)
-                .map(EntregaResponse::from);
+        Page<Entrega> entregas = entregaRepository.findAll(EntregaSpecifications.filtrar(status, q), pageable);
+        return PageResponse.from(entregas, EntregaResponse::from);
     }
 
     /**

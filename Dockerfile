@@ -19,7 +19,7 @@ FROM eclipse-temurin:17-jre-alpine AS runner
 WORKDIR /app
 
 # Criação de usuário não-root para segurança
-RUN addgroup -S spring && adduser -S spring -G spring
+RUN apk add --no-cache curl && addgroup -S spring && adduser -S spring -G spring
 
 # Copia o artefato gerado no estágio anterior
 COPY --from=builder /build/target/*.jar app.jar
@@ -28,6 +28,10 @@ RUN chown -R spring:spring /app
 USER spring:spring
 
 EXPOSE 8080
+EXPOSE 8081
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=45s --retries=10 \
+  CMD curl -fsS http://localhost:8081/actuator/health/readiness || exit 1
 
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/./urandom"
 

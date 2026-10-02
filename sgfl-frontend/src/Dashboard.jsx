@@ -1,21 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTheme } from './useTheme';
 import CadastroRecursos from './CadastroRecursos';
+import useEntregaList from './useEntregaList';
 import api from './api';
-
-const TAMANHO_PAGINA = 10;
 
 export default function Dashboard({ onLogout }) {
 
-    const [entregas, setEntregas] = useState([]);
     const [veiculos, setVeiculos] = useState([]);
     const [motoristas, setMotoristas] = useState([]);
+    const [totalVeiculos, setTotalVeiculos] = useState(0);
+    const [totalMotoristas, setTotalMotoristas] = useState(0);
+    const [opcoesVeiculo, setOpcoesVeiculo] = useState([]);
+    const [opcoesMotorista, setOpcoesMotorista] = useState([]);
+    const [buscaVeiculo, setBuscaVeiculo] = useState('');
+    const [buscaMotorista, setBuscaMotorista] = useState('');
 
-    const [pagina, setPagina] = useState(0);
-    const [totalPaginas, setTotalPaginas] = useState(0);
     const [buscaEntrega, setBuscaEntrega] = useState('');
     const [filtroStatusEntrega, setFiltroStatusEntrega] = useState('');
-    const requisicaoEntregasRef = useRef(0);
+    const requisicaoRecursosRef = useRef(0);
     const workspaceRef = useRef(null);
     const workspaceContentRef = useRef(null);
     const [painelEntregasAberto, setPainelEntregasAberto] = useState(false);
@@ -216,77 +218,12 @@ export default function Dashboard({ onLogout }) {
         ]
     );
 
-    const carregarEntregas = useCallback(
-        async (
-            paginaAlvo = 0
-        ) => {
-            const requisicaoAtual = ++requisicaoEntregasRef.current;
-            const parametros = new URLSearchParams({
-                page: String(paginaAlvo),
-                size: String(TAMANHO_PAGINA)
-            });
-            const termo = buscaEntrega.trim();
-
-            if (termo) {
-                parametros.set('q', termo);
-            }
-
-            if (filtroStatusEntrega) {
-                parametros.set('status', filtroStatusEntrega);
-            }
-
-            try {
-
-                const data =
-                    await request(
-                        `/entregas?${parametros.toString()}`
-                    );
-
-                if (requisicaoAtual !== requisicaoEntregasRef.current) {
-                    return;
-                }
-
-                setEntregas(
-                    Array.isArray(
-                        data?.content
-                    )
-                        ? data.content
-                        : []
-                );
-
-                setPagina(
-                    Number(
-                        data?.number ??
-                        paginaAlvo
-                    )
-                );
-
-                setTotalPaginas(
-                    Number(
-                        data?.totalPages ??
-                        0
-                    )
-                );
-
-            } catch (error) {
-
-                if (requisicaoAtual !== requisicaoEntregasRef.current) {
-                    return;
-                }
-
-                tratarErro(
-                    error,
-                    'Não foi possível carregar as entregas.'
-                );
-            }
-        },
-        [
-            request,
-            tratarErro,
-            buscaEntrega,
-            filtroStatusEntrega
-        ]
-    );
+    const { entregas, pagina, totalPaginas, carregarEntregas } = useEntregaList({
+        request,
+        onError: tratarErro,
+        search: buscaEntrega,
+        status: filtroStatusEntrega
+    });
 
     const carregarRecursos = useCallback(
         async () => {
@@ -299,25 +236,18 @@ export default function Dashboard({ onLogout }) {
                     veiculosData,
                     motoristasData
                 ] = await Promise.all([
-                    request('/veiculos'),
-                    request('/motoristas')
+                    request('/veiculos?page=0&size=100'),
+                    request('/motoristas?page=0&size=100')
                 ]);
 
-                setVeiculos(
-                    Array.isArray(
-                        veiculosData
-                    )
-                        ? veiculosData
-                        : []
-                );
-
-                setMotoristas(
-                    Array.isArray(
-                        motoristasData
-                    )
-                        ? motoristasData
-                        : []
-                );
+                const veiculosDaPagina = Array.isArray(veiculosData?.content) ? veiculosData.content : [];
+                const motoristasDaPagina = Array.isArray(motoristasData?.content) ? motoristasData.content : [];
+                setVeiculos(veiculosDaPagina);
+                setMotoristas(motoristasDaPagina);
+                setOpcoesVeiculo(veiculosDaPagina);
+                setOpcoesMotorista(motoristasDaPagina);
+                setTotalVeiculos(Number(veiculosData?.totalElements ?? 0));
+                setTotalMotoristas(Number(motoristasData?.totalElements ?? 0));
 
             } catch (error) {
 
@@ -339,6 +269,35 @@ export default function Dashboard({ onLogout }) {
         ]
     );
 
+    useEffect(() => {
+        if (!entregaAlocacao) return undefined;
+
+        const requisicaoAtual = ++requisicaoRecursosRef.current;
+        const temporizador = window.setTimeout(async () => {
+            try {
+                const parametrosVeiculo = new URLSearchParams({ page: '0', size: '100' });
+                const parametrosMotorista = new URLSearchParams({ page: '0', size: '100' });
+                if (buscaVeiculo.trim()) parametrosVeiculo.set('q', buscaVeiculo.trim());
+                if (buscaMotorista.trim()) parametrosMotorista.set('q', buscaMotorista.trim());
+                const [veiculosData, motoristasData] = await Promise.all([
+                    request(`/veiculos?${parametrosVeiculo}`),
+                    request(`/motoristas?${parametrosMotorista}`)
+                ]);
+                if (requisicaoAtual !== requisicaoRecursosRef.current) return;
+                setOpcoesVeiculo(Array.isArray(veiculosData?.content) ? veiculosData.content : []);
+                setOpcoesMotorista(Array.isArray(motoristasData?.content) ? motoristasData.content : []);
+            } catch (error) {
+                if (requisicaoAtual === requisicaoRecursosRef.current) {
+                    tratarErro(error, 'Não foi possível buscar veículos e motoristas.');
+                }
+            } finally {
+                if (requisicaoAtual === requisicaoRecursosRef.current) setCarregandoRecursos(false);
+            }
+        }, 220);
+
+        return () => window.clearTimeout(temporizador);
+    }, [entregaAlocacao, buscaVeiculo, buscaMotorista, request, tratarErro]);
+
     const atualizarIndicadorRolagem = useCallback(() => {
         const workspace = workspaceRef.current;
         if (!workspace) return;
@@ -351,14 +310,8 @@ export default function Dashboard({ onLogout }) {
     }, []);
 
     useEffect(() => {
-        const atraso = buscaEntrega.trim() ? 350 : 0;
-        const temporizador = window.setTimeout(() => carregarEntregas(0), atraso);
-
-        return () => window.clearTimeout(temporizador);
-    }, [buscaEntrega, filtroStatusEntrega, carregarEntregas]);
-
-    useEffect(() => {
-        carregarRecursos();
+        const timeout = window.setTimeout(carregarRecursos, 0);
+        return () => window.clearTimeout(timeout);
     }, [carregarRecursos]);
 
     useEffect(() => {
@@ -1204,7 +1157,7 @@ export default function Dashboard({ onLogout }) {
                         }
                         label="Motoristas"
                         value={
-                            motoristas.length
+                            totalMotoristas
                         }
                         description="cadastrados"
                     />
@@ -1216,7 +1169,7 @@ export default function Dashboard({ onLogout }) {
                         }
                         label="Veículos"
                         value={
-                            veiculos.length
+                            totalVeiculos
                         }
                         description="cadastrados"
                     />
@@ -1880,6 +1833,18 @@ export default function Dashboard({ onLogout }) {
                             >
                                 Veículo
 
+                                <input
+                                    type="search"
+                                    value={buscaVeiculo}
+                                    onChange={event => {
+                                        setCarregandoRecursos(true);
+                                        setBuscaVeiculo(event.target.value);
+                                    }}
+                                    style={styles.input}
+                                    placeholder="Filtrar por placa ou modelo"
+                                    aria-label="Filtrar veículos por placa ou modelo"
+                                />
+
                                 <select
                                     value={
                                         veiculoSelecionado
@@ -1903,10 +1868,12 @@ export default function Dashboard({ onLogout }) {
                                     <option value="">
                                         {carregandoRecursos
                                             ? 'Carregando veículos...'
-                                            : 'Selecione um veículo'}
+                                            : opcoesVeiculo.length
+                                                ? 'Selecione um veículo'
+                                                : 'Nenhum veículo encontrado'}
                                     </option>
 
-                                    {veiculos.map(
+                                    {opcoesVeiculo.map(
                                         veiculo => (
                                             <option
                                                 key={
@@ -1943,6 +1910,18 @@ export default function Dashboard({ onLogout }) {
                             >
                                 Motorista
 
+                                <input
+                                    type="search"
+                                    value={buscaMotorista}
+                                    onChange={event => {
+                                        setCarregandoRecursos(true);
+                                        setBuscaMotorista(event.target.value);
+                                    }}
+                                    style={styles.input}
+                                    placeholder="Filtrar por nome ou CPF"
+                                    aria-label="Filtrar motoristas por nome ou CPF"
+                                />
+
                                 <select
                                     value={
                                         motoristaSelecionado
@@ -1966,10 +1945,12 @@ export default function Dashboard({ onLogout }) {
                                     <option value="">
                                         {carregandoRecursos
                                             ? 'Carregando motoristas...'
-                                            : 'Selecione um motorista'}
+                                            : opcoesMotorista.length
+                                                ? 'Selecione um motorista'
+                                                : 'Nenhum motorista encontrado'}
                                     </option>
 
-                                    {motoristas.map(
+                                    {opcoesMotorista.map(
                                         motorista => (
                                             <option
                                                 key={

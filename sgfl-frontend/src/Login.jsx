@@ -29,22 +29,7 @@ export default function Login({ onLoginSuccess }) {
                 password: senha
             });
 
-            const jwtToken =
-                response.data?.token ||
-                response.data?.jwt ||
-                response.data;
-
-            if (
-                typeof jwtToken !== 'string' ||
-                jwtToken.trim() === ''
-            ) {
-                setErro(
-                    'Token não retornado corretamente pelo servidor.'
-                );
-                return;
-            }
-
-            onLoginSuccess(jwtToken);
+            onLoginSuccess();
         } catch (error) {
             if (error.response?.status === 401) {
                 setErro('Credenciais inválidas.');

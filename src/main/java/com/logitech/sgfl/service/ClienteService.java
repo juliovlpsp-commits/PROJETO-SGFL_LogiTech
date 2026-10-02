@@ -7,6 +7,8 @@ import com.logitech.sgfl.repository.ClienteRepository;
 import com.logitech.sgfl.repository.PedidoRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -181,6 +183,11 @@ public class ClienteService {
     @Transactional
     public List<Cliente> listar() {
         return clienteRepository.findAll();
+    }
+
+    @Transactional
+    public Page<Cliente> listar(Pageable pageable) {
+        return clienteRepository.findAll(pageable);
     }
 
     private void preencher(

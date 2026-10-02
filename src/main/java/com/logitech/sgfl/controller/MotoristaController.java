@@ -1,6 +1,7 @@
 package com.logitech.sgfl.controller;
 
 import com.logitech.sgfl.dto.MotoristaRequest;
+import com.logitech.sgfl.dto.MotoristaResponse;
 import com.logitech.sgfl.exceptions.RecursoNaoEncontradoException;
 import com.logitech.sgfl.me.Motorista;
 import com.logitech.sgfl.repository.EntregaRepository;
@@ -28,12 +29,12 @@ public class MotoristaController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Motorista>> listarTodos() {
-        return ResponseEntity.ok(motoristaRepository.findAll());
+    public ResponseEntity<List<MotoristaResponse>> listarTodos() {
+        return ResponseEntity.ok(motoristaRepository.findAll().stream().map(MotoristaResponse::from).toList());
     }
 
     @PostMapping
-    public ResponseEntity<Motorista> criarMotorista(@Valid @RequestBody MotoristaRequest request) {
+    public ResponseEntity<MotoristaResponse> criarMotorista(@Valid @RequestBody MotoristaRequest request) {
         String cpf = normalizarCpf(request.getCpf());
         validarCpfNormalizado(cpf);
 
@@ -44,11 +45,11 @@ public class MotoristaController {
         Motorista motorista = new Motorista(request.getNome().trim(), cpf, request.getTipoCNH());
         Motorista salvo = motoristaRepository.save(motorista);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(salvo);
+        return ResponseEntity.status(HttpStatus.CREATED).body(MotoristaResponse.from(salvo));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Motorista> atualizarMotorista(
+    public ResponseEntity<MotoristaResponse> atualizarMotorista(
             @PathVariable Long id,
             @Valid @RequestBody MotoristaRequest request
     ) {
@@ -67,7 +68,7 @@ public class MotoristaController {
         motorista.setCpf(cpf);
         motorista.setTipoCNH(request.getTipoCNH());
 
-        return ResponseEntity.ok(motoristaRepository.save(motorista));
+        return ResponseEntity.ok(MotoristaResponse.from(motoristaRepository.save(motorista)));
     }
 
     @DeleteMapping("/{id}")

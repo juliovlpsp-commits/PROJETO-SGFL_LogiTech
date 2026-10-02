@@ -15,6 +15,7 @@ import {
 const ABA_CLIENTES = 'clientes';
 const ABA_PRODUTOS = 'produtos';
 const ABA_PEDIDOS = 'pedidos';
+const TAMANHO_PAGINA_COMERCIAL = 20;
 
 const CLIENTE_VAZIO = {
     nome: '',
@@ -48,7 +49,14 @@ export default function GestaoComercial() {
 
     const [clientes, setClientes] = useState([]);
     const [produtos, setProdutos] = useState([]);
+    const [clientesPagina, setClientesPagina] = useState([]);
+    const [produtosPagina, setProdutosPagina] = useState([]);
     const [pedidos, setPedidos] = useState([]);
+    const [paginas, setPaginas] = useState({
+        clientes: { page: 0, totalPages: 0 },
+        produtos: { page: 0, totalPages: 0 },
+        pedidos: { page: 0, totalPages: 0 }
+    });
 
     const [clienteEditando, setClienteEditando] = useState(null);
     const [clienteForm, setClienteForm] = useState({
@@ -148,22 +156,26 @@ export default function GestaoComercial() {
                     produtosResponse,
                     pedidosResponse
                 ] = await Promise.all([
-                    api.get('/clientes'),
-                    api.get('/produtos'),
-                    api.get('/pedidos')
+                    api.get('/clientes', { params: { page: 0, size: TAMANHO_PAGINA_COMERCIAL } }),
+                    api.get('/produtos', { params: { page: 0, size: TAMANHO_PAGINA_COMERCIAL } }),
+                    api.get('/pedidos', { params: { page: 0, size: TAMANHO_PAGINA_COMERCIAL } })
                 ]);
 
-                setClientes(
-                    extrairLista(clientesResponse)
-                );
-
-                setProdutos(
-                    extrairLista(produtosResponse)
-                );
+                const clientesIniciais = extrairLista(clientesResponse);
+                const produtosIniciais = extrairLista(produtosResponse);
+                setClientes(clientesIniciais);
+                setClientesPagina(clientesIniciais);
+                setProdutos(produtosIniciais);
+                setProdutosPagina(produtosIniciais);
 
                 setPedidos(
                     extrairLista(pedidosResponse)
                 );
+                setPaginas({
+                    clientes: lerPaginacao(clientesResponse),
+                    produtos: lerPaginacao(produtosResponse),
+                    pedidos: lerPaginacao(pedidosResponse)
+                });
             } catch (error) {
                 tratarErro(
                     error,
@@ -175,6 +187,44 @@ export default function GestaoComercial() {
         },
         [tratarErro, extrairLista]
     );
+
+    const carregarPagina = useCallback(async (recurso, pagina) => {
+        try {
+            const response = await api.get(`/${recurso}`, {
+                params: { page: pagina, size: TAMANHO_PAGINA_COMERCIAL }
+            });
+            const conteudo = extrairLista(response);
+            if (recurso === 'clientes') {
+                setClientesPagina(conteudo);
+                setClientes(atual => [...new Map([...atual, ...conteudo].map(item => [item.id, item])).values()]);
+            } else if (recurso === 'produtos') {
+                setProdutosPagina(conteudo);
+                setProdutos(atual => [...new Map([...atual, ...conteudo].map(item => [item.id, item])).values()]);
+            } else {
+                setPedidos(conteudo);
+            }
+            setPaginas(atual => ({
+                ...atual,
+                [recurso]: lerPaginacao(response)
+            }));
+        } catch (error) {
+            tratarErro(error, 'Não foi possível carregar esta página.');
+        }
+    }, [extrairLista, tratarErro]);
+
+    const paginacaoLista = recurso => {
+        const pagina = paginas[recurso];
+        if (!pagina || pagina.totalPages <= 1) return null;
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, paddingTop: 14 }}>
+                <span style={{ color: theme.inkSoft, fontSize: 12 }}>Página {pagina.page + 1} de {pagina.totalPages}</span>
+                <BlurButton type="button" style={styles.small} disabled={pagina.page === 0 || carregando}
+                    onClick={() => carregarPagina(recurso, pagina.page - 1)}>Anterior</BlurButton>
+                <BlurButton type="button" style={styles.small} disabled={pagina.page + 1 >= pagina.totalPages || carregando}
+                    onClick={() => carregarPagina(recurso, pagina.page + 1)}>Próxima</BlurButton>
+            </div>
+        );
+    };
 
     useEffect(() => {
         if (aberto) {
@@ -1202,7 +1252,7 @@ export default function GestaoComercial() {
                                         </thead>
 
                                         <tbody>
-                                        {clientes.map(
+                                        {clientesPagina.map(
                                             cliente => (
                                                 <tr
                                                     key={
@@ -1318,6 +1368,7 @@ export default function GestaoComercial() {
                                                 text="Nenhum cliente cadastrado."
                                             />
                                         )}
+                                    {paginacaoLista('clientes')}
                                 </div>
                             </section>
                         </div>
@@ -1583,7 +1634,7 @@ export default function GestaoComercial() {
                                         </thead>
 
                                         <tbody>
-                                        {produtos.map(
+                                        {produtosPagina.map(
                                             produto => {
                                                 const estoque =
                                                     Number(
@@ -1724,6 +1775,7 @@ export default function GestaoComercial() {
                                                 text="Nenhum produto cadastrado."
                                             />
                                         )}
+                                    {paginacaoLista('produtos')}
                                 </div>
                             </section>
                         </div>
@@ -2161,6 +2213,7 @@ export default function GestaoComercial() {
                                                 text="Nenhum pedido cadastrado."
                                             />
                                         )}
+                                    {paginacaoLista('pedidos')}
                                 </div>
                             </section>
                         </div>
@@ -2405,6 +2458,14 @@ function StatusBadge({
                 status}
         </span>
     );
+}
+
+function lerPaginacao(response) {
+    const data = response?.data || {};
+    return {
+        page: Number(data.page ?? data.number ?? 0),
+        totalPages: Number(data.totalPages ?? 0)
+    };
 }
 
 function formatarMoeda(valor) {

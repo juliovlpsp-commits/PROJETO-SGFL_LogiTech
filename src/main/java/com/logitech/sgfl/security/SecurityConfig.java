@@ -63,6 +63,9 @@ public class SecurityConfig {
                                 "/error"
                         ).permitAll()
 
+                        .requestMatchers(HttpMethod.GET, "/api/auth/session")
+                        .authenticated()
+
                         .requestMatchers(
                                 "/api/auth/**"
                         ).permitAll()

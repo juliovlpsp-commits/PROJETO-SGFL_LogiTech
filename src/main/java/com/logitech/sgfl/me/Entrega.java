@@ -35,16 +35,16 @@ public class Entrega {
     @Column(name = "entregue_em")
     private LocalDateTime entregueEm;
 
-    @Column(name = "latitude_origem", precision = 9, scale = 6)
+    @Column(name = "latitude_origem")
     private Double latitudeOrigem;
 
-    @Column(name = "longitude_origem", precision = 9, scale = 6)
+    @Column(name = "longitude_origem")
     private Double longitudeOrigem;
 
-    @Column(name = "latitude_destino", precision = 9, scale = 6)
+    @Column(name = "latitude_destino")
     private Double latitudeDestino;
 
-    @Column(name = "longitude_destino", precision = 9, scale = 6)
+    @Column(name = "longitude_destino")
     private Double longitudeDestino;
 
     @Column(name = "valor_frete", nullable = false, precision = 12, scale = 2)

@@ -1,0 +1,10 @@
+{
+  "name": "SGFL — Gestão de Entregas",
+  "short_name": "SGFL",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#100C0B",
+  "theme_color": "#A54552",
+  "lang": "pt-BR",
+  "icons": []
+}

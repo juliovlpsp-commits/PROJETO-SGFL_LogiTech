@@ -1,0 +1,37 @@
+package com.logitech.sgfl.dto;
+
+import com.logitech.sgfl.enums.StatusEntrega;
+import com.logitech.sgfl.me.Entrega;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+public record EntregaResponse(
+        Long id,
+        String descricao,
+        String enderecoOrigem,
+        String enderecoDestino,
+        double pesoCargaKg,
+        StatusEntrega status,
+        String codigoRastreio,
+        LocalDateTime agendadaInicio,
+        LocalDateTime agendadaFim,
+        LocalDateTime iniciadaEm,
+        LocalDateTime entregueEm,
+        BigDecimal valorFrete,
+        VeiculoResponse veiculo,
+        MotoristaResponse motorista
+) {
+    public static EntregaResponse from(Entrega entrega) {
+        return new EntregaResponse(entrega.getId(), entrega.getDescricao(), entrega.getEnderecoOrigem(),
+                entrega.getEnderecoDestino(), entrega.getPesoCargaKg(), entrega.getStatus(),
+                entrega.getCodigoRastreio(),
+                entrega.getAgendadaInicio(),
+                entrega.getAgendadaFim(),
+                entrega.getIniciadaEm(),
+                entrega.getEntregueEm(),
+                entrega.getValorFrete(),
+                VeiculoResponse.from(entrega.getVeiculo()),
+                entrega.getMotorista() == null ? null : MotoristaResponse.from(entrega.getMotorista()));
+    }
+}

@@ -42,6 +42,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 class EntregaControllerTest {
 
+    @MockitoBean
+    private com.logitech.sgfl.security.JwtService jwtService;
+
+    @MockitoBean
+    private com.logitech.sgfl.service.SistemaLogistica sistemaLogistica;
+
     @Autowired
     private MockMvc mockMvc;
 

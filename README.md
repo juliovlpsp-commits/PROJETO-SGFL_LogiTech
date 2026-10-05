@@ -1,49 +1,98 @@
-# SGFL - Sistema de Gestão de Frota e Logística
+# SGFL — Sistema de Gestão de Frota e Logística
 
-Sistema web com API REST em Spring Boot e frontend React para gestão de frota, entregas, clientes, produtos, estoque e pedidos. Inclui autenticação JWT, regras de negócio, tratamento centralizado de erros e testes automatizados.
+[![CI](https://github.com/juliovlpsp-commits/PROJETO-SGFL_LogiTech/actions/workflows/ci.yml/badge.svg)](https://github.com/juliovlpsp-commits/PROJETO-SGFL_LogiTech/actions/workflows/ci.yml)
+![Java](https://img.shields.io/badge/Java-17-e76f00?logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5.16-6db33f?logo=springboot&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=black)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169e1?logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/build-Docker_Compose-2496ed?logo=docker&logoColor=white)
 
- 
+Sistema web de gestão de frota e logística com API REST em **Spring Boot** e interface em **React**: entregas, veículos, motoristas, clientes, produtos, estoque e pedidos — com autenticação JWT em cookie, regras de negócio no servidor, tratamento centralizado de erros e testes automatizados.
+
+Funcionalidades em destaque:
+
+- **Portal público de rastreio** — cada entrega recebe um código único `SGFL-XXXXXXXXXXXX`, consultável sem login em `/rastreio/{codigo}`.
+- **Operação avançada** — KPIs, alertas, linha do tempo, comprovante de entrega com foto/assinatura, custos por entrega, estimativa de rota/ETA, relatórios CSV e PDF e importação em CSV.
+- **Gestão comercial** — clientes, produtos, estoque e pedidos com reserva de estoque em transação.
+- **Operação pronta para produção** — Flyway, logs estruturados JSON com *correlation ID*, rate limiting por IP, CSRF, health/readiness e métricas Prometheus.
+
 ---
 
+## Sumário
 
-### Portal público de rastreio
+- [Arquitetura](#arquitetura)
+- [Tecnologias](#tecnologias)
+- [Telas e rotas do frontend](#telas-e-rotas-do-frontend)
+- [Autenticação](#autenticação)
+- [API — endpoints](#api--endpoints)
+- [Regras de negócio](#regras-de-negócio)
+- [Variáveis de ambiente](#variáveis-de-ambiente)
+- [Execução com Docker (recomendado)](#execução-com-docker-recomendado)
+- [Execução portátil (sem Docker e sem PostgreSQL)](#execução-portátil-sem-docker-e-sem-postgresql)
+- [Desenvolvimento manual](#desenvolvimento-manual)
+- [Testes e integração contínua](#testes-e-integração-contínua)
+- [Recursos implementados](#recursos-implementados)
+- [Estrutura do repositório](#estrutura-do-repositório)
+- [Roadmap](#roadmap)
+- [Documentação relacionada](#documentação-relacionada)
 
-As entregas passam a possuir um código único `SGFL-XXXXXXXXXXXX` e podem ser consultadas sem login em `/rastreio/{codigo}`.
-
-### Operação avançada
-
-Endpoints adicionados: `/api/operacional/kpis`, `/api/operacional/alertas`, `/api/entregas/{id}/timeline`, `/api/entregas/{id}/comprovante`, `/api/rastreio/{codigo}`, `/api/relatorios/entregas.csv` e `/api/importacao/{clientes|produtos|entregas}`.
-
-## Tecnologias
-
-**Backend**
-- Java 17, Spring Boot 3.5.16 (Web, Data JPA, Security, Validation, Actuator)
-- PostgreSQL (produção/desenvolvimento), Flyway (migrações) e H2 em memória (testes gerais)
-- Testcontainers + Docker (PostgreSQL 15 e Redis reais nos testes de integração)
-- Redis compartilhado para rate limiting no Docker; Bucket4j em memória no modo portátil
-- Micrometer/Prometheus, health checks e logs estruturados em JSON
-- JWT (jjwt) para autenticação stateless
-- JUnit 5, Mockito, AssertJ, Spring Security Test
-- Maven
-  **Frontend**
-- React + Vite
-- Tema claro/escuro persistido, layout responsivo
-  **Infraestrutura**
-- GitHub Actions: roda a suíte de testes a cada `push`/pull request
-- Playwright: valida os principais fluxos no navegador com contrato de API simulado
-- k6: roteiro de carga somente de leitura para API de entregas
 ---
 
 ## Arquitetura
 
-Consulte [`ARCHITECTURE.md`](ARCHITECTURE.md) para o mapa atualizado dos módulos de frota, entregas e gestão comercial.
+Aplicação em três partes: interface React, API REST em Spring Boot e PostgreSQL. O frontend fala com a API por HTTP (cookies JWT e CSRF); somente o backend acessa o banco.
 
-O código está separado em controllers, serviços, repositórios, entidades, DTOs, segurança, tratamento de erros, logging e rate limiting. As respostas da API usam DTOs para manter os contratos HTTP separados das entidades JPA. O frontend nunca acessa o banco diretamente.
- 
+Consulte [`ARCHITECTURE.md`](ARCHITECTURE.md) para o mapa completo dos módulos de frota, entregas e gestão comercial.
+
+O código está separado em `controller`, `service`, `repository`, `me` (entidades JPA), `dto`, `security`, `exceptions`, `ratelimit`, `logging` e `config`. As respostas da API usam DTOs, mantendo os contratos HTTP separados das entidades JPA.
+
+---
+
+## Tecnologias
+
+**Backend**
+
+- Java 17, Spring Boot 3.5.16 (Web, Data JPA, Security, Validation, Actuator, Redis)
+- PostgreSQL 15 em produção/desenvolvimento, Flyway para migrações e H2 nos testes gerais
+- Testcontainers + Docker (PostgreSQL 15 e Redis reais nos testes de integração)
+- Redis compartilhado para rate limiting no Docker; buckets em memória no modo portátil
+- Micrometer/Prometheus, health/readiness, logs estruturados em JSON
+- JWT (jjwt) para autenticação stateless via cookie `HttpOnly`
+- JUnit 5, Mockito, AssertJ, Spring Security Test
+- Maven (wrapper incluso: `./mvnw`)
+
+**Frontend**
+
+- React 19 + Vite 8 + React Router, Axios e ícones Lucide
+- Tema claro/escuro persistido, layout responsivo
+- PWA básico: `manifest.webmanifest` e service worker (`sw.js`)
+- Lint com Oxlint, testes com `node --test` e Playwright
+
+**Infraestrutura**
+
+- GitHub Actions com 3 jobs: testes do backend, build/lint/testes do frontend e testes de navegador (E2E)
+- Playwright: valida os principais fluxos no navegador com contrato de API simulado
+- k6: roteiro de carga somente de leitura para a API de entregas (`performance/`)
+
+---
+
+## Telas e rotas do frontend
+
+| Rota | Tela | Acesso |
+|---|---|---|
+| `/` | Login (`Login.jsx`) | público |
+| `/rastreio/{codigo}` | Portal público de rastreio (`RastreioPublico.jsx`) | público, sem login |
+| `/` autenticado | Dashboard de frota e entregas (`Dashboard.jsx`) | autenticado |
+| `/` autenticado | Gestão comercial: clientes, produtos e pedidos (`GestaoComercial.jsx`) | autenticado |
+| `/` autenticado | Cadastro de motoristas e veículos (`CadastroRecursos.jsx`) | autenticado (escrita = ADMIN) |
+
+`App.jsx` valida a sessão (`/api/auth/csrf` + `/api/auth/session`), reage à expiração do token e compõe as telas. `api.js` centraliza as chamadas Axios, o cookie CSRF (`X-XSRF-TOKEN`) e o tratamento de 401. A listagem paginada de entregas vive no hook `useEntregaList.js`.
+
 ---
 
 ## Autenticação
 
+- `GET /api/auth/csrf` — **público**; entrega o cookie CSRF usado pelo Axios nas operações que alteram dados.
 - `POST /api/auth/registrar` — cadastro público; cria sempre um usuário `ROLE_OPERADOR` (senha de 8 a 72 caracteres). O `username` informado também é usado como e-mail de login.
 - `POST /api/auth/login` — autentica por **email** e senha e configura um cookie de sessão JWT `HttpOnly`.
 - `GET /api/auth/session` — verifica se o cookie representa uma sessão válida.
@@ -55,16 +104,21 @@ Sem token, ou com token inválido/expirado, a API responde **401**. Autenticado,
 
 ### Perfis e permissões
 
+Regras aplicadas em `SecurityConfig`:
+
 | Operação | `ROLE_OPERADOR` | `ROLE_ADMIN` |
 |---|:---:|:---:|
-| Listar entregas, motoristas e veículos | sim | sim |
-| Criar, alocar, finalizar e cancelar entregas | sim | sim |
+| Consultar `/api/rastreio/{codigo}` | público | público |
+| Listar entregas, motoristas, veículos, clientes, produtos e pedidos | sim | sim |
+| Criar, alocar, finalizar e cancelar entregas; criar pedidos | sim | sim |
+| Cadastrar/editar clientes (`POST`/`PUT` `/api/clientes/**`) | sim | sim |
 | Cadastrar/editar motoristas e veículos (`POST`/`PUT`) | não | sim |
-| Qualquer `DELETE` | não | sim |
+| Cadastrar/editar produtos e ajustar estoque (`POST`/`PUT` `/api/produtos/**`) | não | sim |
+| Qualquer `DELETE` em `/api/**` | não | sim |
 
 ### Primeiro administrador
 
-Não existe mais nenhum usuário com credencial fixa no código. Para criar o primeiro administrador, defina as variáveis abaixo **antes de subir a aplicação** (o `BootstrapAdminInitializer` só cria o usuário se ele ainda não existir e **nunca altera a senha de um usuário existente**):
+Não existe nenhuma credencial fixa no código. Para criar o primeiro administrador, defina as variáveis abaixo **antes de subir a aplicação** (o `BootstrapAdminInitializer` só cria o usuário se ele ainda não existir e **nunca altera a senha de um usuário existente**):
 
 ```
 BOOTSTRAP_ADMIN_ENABLED=true
@@ -74,87 +128,177 @@ BOOTSTRAP_ADMIN_PASSWORD=uma-senha-forte-com-8-ou-mais-caracteres
 ```
 
 Depois do primeiro acesso, pode voltar `BOOTSTRAP_ADMIN_ENABLED` para `false`.
- 
+
 ---
 
-## Entregas — regras de negócio
+## API — endpoints
 
-1. **Capacidade de carga**: uma entrega só pode ser alocada a um veículo se `pesoCargaKg` for menor ou igual à capacidade do veículo. Alocação incompatível retorna `400 Bad Request` com mensagem descritiva (`VeiculoIncompativelException`).
-2. **CNH do motorista**:
-   - Caminhão: exige CNH categoria `D` ou `E`.
-   - Furgão: exige CNH categoria `B`, `C`, `D` ou `E`.
-3. **Status da entrega**: `PENDENTE` → `EM_TRANSITO` → `ENTREGUE`; `PENDENTE` ou `EM_TRANSITO` → `CANCELADA`.
-4. **Um veículo e um motorista só podem estar em uma entrega `EM_TRANSITO` por vez.** Além da checagem no serviço, isso é garantido por índices únicos parciais no banco (migration V5), o que protege contra requisições simultâneas.
-5. **Não é possível excluir uma entrega `EM_TRANSITO`** (cancele ou finalize antes).
-6. **Placa e CPF são únicos.** O CPF precisa ter dígitos verificadores válidos.
-### Endpoints principais
+> Base URL de desenvolvimento: `http://localhost:8080/api`. Todas as rotas exigem autenticação, exceto as marcadas como **público**.
+
+### Autenticação
+
+| Método | Rota | Acesso | Descrição |
+|---|---|---|---|
+| GET | `/api/auth/csrf` | público | Entrega o token CSRF |
+| POST | `/api/auth/registrar` | público | Cria usuário `ROLE_OPERADOR` |
+| POST | `/api/auth/login` | público | Login por e-mail/senha, define cookie JWT |
+| GET | `/api/auth/session` | autenticado | Valida a sessão atual |
+| POST | `/api/auth/logout` | autenticado | Remove o cookie de sessão |
+
+### Entregas
 
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/api/entregas?page=0&size=20` | Lista paginada, sempre ordenada por `id` |
-| POST | `/api/entregas` | Cria uma entrega (valida descrição, destino e status) |
-| PATCH | `/api/entregas/{id}/status` | Atualiza o status de uma entrega |
-| PUT | `/api/entregas/{id}/alocar?veiculoId=&motoristaId=` | Aloca veículo/motorista (valida peso e CNH) |
+| GET | `/api/entregas?page=0&size=20&status=&q=` | Lista paginada, ordenada por `id`, com filtros de status e busca |
+| POST | `/api/entregas` | Cria uma entrega (descrição, destino, peso, status inicial, janela de agendamento, coordenadas e `valorFrete`) |
+| PATCH | `/api/entregas/{id}/status` | Atualiza o status (transições válidas) |
+| PUT | `/api/entregas/{id}/alocar?veiculoId=&motoristaId=` | Aloca veículo/motorista (valida peso, CNH e disponibilidade) |
 | PUT | `/api/entregas/{id}/finalizar` | Marca a entrega como concluída |
 | DELETE | `/api/entregas/{id}` | Remove uma entrega |
+| GET | `/api/entregas/{id}/timeline` | Linha do tempo de eventos da entrega |
+| GET | `/api/entregas/{id}/comprovante` | Consulta o comprovante (recebedor, assinatura, foto) |
+| POST | `/api/entregas/{id}/comprovante` | Envia o comprovante (`multipart/form-data`) |
+| GET | `/api/entregas/{id}/rota` | Estimativa de distância, duração e ETA |
 
-Clientes, produtos e pedidos também usam `page` e `size` nas rotas de listagem, com 20 itens por padrão e máximo de 100. A resposta inclui `content`, `page`, `size`, `totalElements` e `totalPages`; a interface comercial oferece controles de página.
+### Operação e relatórios
 
-Motoristas e veículos usam o mesmo contrato paginado e aceitam `q` para filtrar por nome/CPF ou placa/modelo. A busca de recursos na alocação consulta o servidor e continua encontrando registros além dos primeiros 100.
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/operacional/kpis` | KPIs do painel operacional |
+| GET | `/api/operacional/alertas` | Alertas (atrasadas, sem recurso, fora do prazo) |
+| GET | `/api/operacional/entregas/{id}/custos` | Custos lançados na entrega |
+| POST | `/api/operacional/entregas/{id}/custos` | Lança um custo (tipo, descrição, valor ≥ 0) |
+| GET | `/api/relatorios/entregas.csv?status=&q=` | Exportação CSV das entregas |
+| GET | `/api/relatorios/entregas.pdf?status=&q=` | Exportação PDF (gerado sem dependência externa) |
+| POST | `/api/importacao/{clientes\|produtos\|entregas}` | Importa um CSV (`arquivo`, UTF-8, separador `;` ou `,`) |
 
-Erros seguem sempre o mesmo formato:
+### Rastreio público
+
+| Método | Rota | Acesso | Descrição |
+|---|---|---|---|
+| GET | `/api/rastreio/{codigo}` | público | Consulta a entrega pelo código `SGFL-XXXXXXXXXXXX` |
+
+### Frota
+
+| Método | Rota | Permissão |
+|---|---|---|
+| GET | `/api/motoristas?page=&size=&q=` | autenticado (busca por nome/CPF) |
+| POST | `/api/motoristas` | ADMIN |
+| PUT | `/api/motoristas/{id}` | ADMIN |
+| DELETE | `/api/motoristas/{id}` | ADMIN |
+| GET | `/api/veiculos?page=&size=&q=` | autenticado (busca por placa/modelo) |
+| POST | `/api/veiculos/caminhao` · `/api/veiculos/furgao` | ADMIN |
+| PUT | `/api/veiculos/caminhao/{id}` · `/api/veiculos/furgao/{id}` | ADMIN |
+| DELETE | `/api/veiculos/{id}` | ADMIN |
+
+### Gestão comercial
+
+| Método | Rota | Permissão |
+|---|---|---|
+| GET | `/api/clientes?page=&size=` · `GET /{id}` | autenticado |
+| POST | `/api/clientes` · `PUT /{id}` | ADMIN ou OPERADOR |
+| DELETE | `/api/clientes/{id}` | ADMIN |
+| GET | `/api/produtos?page=&size=` · `GET /{id}` | autenticado |
+| POST | `/api/produtos` · `PUT /{id}` · `PUT /{id}/estoque` | ADMIN |
+| DELETE | `/api/produtos/{id}` | ADMIN |
+| GET | `/api/pedidos?page=&size=` · `GET /{id}` | autenticado |
+| POST | `/api/pedidos` | autenticado |
+| PATCH | `/api/pedidos/{id}/cancelar` | autenticado |
+
+### Contrato comum de listagem
+
+Todas as listagens usam `page` e `size`, com **20 itens por padrão e máximo de 100**, e resposta no formato:
+
+```json
+{
+  "content": [ ... ],
+  "page": 0,
+  "size": 20,
+  "totalElements": 87,
+  "totalPages": 5
+}
+```
+
+Motoristas e veículos também aceitam `q` para filtrar por nome/CPF ou placa/modelo. A busca de recursos na alocação consulta o servidor e continua encontrando registros além dos primeiros 100.
+
+### Formato de erro
+
+Todos os erros seguem o mesmo envelope (o `requestId` acompanha o log estruturado da requisição):
+
 ```json
 {
   "timestamp": "...",
   "status": 400,
   "error": "Dados inválidos",
   "message": "Um ou mais campos são inválidos",
-  "campos": { "descricao": "A descrição é obrigatória" }
+  "campos": { "descricao": "A descrição é obrigatória" },
+  "requestId": "9426f4fa-..."
 }
 ```
- 
+
 ---
 
-## Rodando o projeto
+## Regras de negócio
 
-### Pré-requisitos
-- JDK 17+
-- PostgreSQL em execução
-- Node.js 22+ (para compilar o frontend)
-### 1. Configurar variáveis de ambiente
+### Entregas
 
-Nada de senha ou segredo direto no `application.properties` — configure via variáveis de ambiente (as que não têm padrão são obrigatórias: a aplicação não sobe sem `DB_PASSWORD` e `JWT_SECRET`):
+1. **Capacidade de carga**: uma entrega só pode ser alocada a um veículo se `pesoCargaKg` for menor ou igual à capacidade do veículo (`VeiculoIncompativelException`, HTTP 400).
+2. **CNH do motorista**: caminhão exige categoria `D` ou `E`; furgão exige `B`, `C`, `D` ou `E`.
+3. **Status da entrega**: `PENDENTE` → `EM_TRANSITO` → `ENTREGUE`; `PENDENTE` ou `EM_TRANSITO` → `CANCELADA`.
+4. **Alocação exclusiva**: um veículo e um motorista só podem estar em uma entrega `EM_TRANSITO` por vez — garantido no serviço **e** por índices únicos parciais no banco (migration V5), protegendo contra requisições simultâneas.
+5. **Janela de agendamento**: a data final não pode ser anterior à inicial, e veículo/motorista já reservados no mesmo intervalo de horário são recusados.
+6. **Finalização**: exige status `EM_TRANSITO` com veículo e motorista alocados.
+7. **Exclusão**: não é possível remover uma entrega `EM_TRANSITO` (cancele ou finalize antes).
+8. **Placa e CPF são únicos**; o CPF precisa ter dígitos verificadores válidos.
+9. **Código de rastreio**: gerado automaticamente (`SGFL-XXXXXXXXXXXX`), `NOT NULL` e único (migration V7).
+
+### Pedidos e estoque
+
+- Pedido só é criado para cliente ativo, com quantidade dentro do estoque disponível.
+- A criação **reserva o estoque em transação**; cancelar um pedido devolve a quantidade.
+- Somente pedidos `ABERTOS` podem ser cancelados.
+
+---
+
+## Variáveis de ambiente
+
+Nada de senha ou segredo no `application.properties` — tudo via variáveis de ambiente. As que não têm padrão são obrigatórias: a aplicação não sobe sem `DB_PASSWORD` e `JWT_SECRET`.
 
 | Variável | Descrição | Padrão (dev) |
 |---|---|---|
 | `DB_URL` | URL JDBC do Postgres | `jdbc:postgresql://localhost:5432/sgfl_db` |
 | `DB_USERNAME` | Usuário do banco | `postgres` |
 | `DB_PASSWORD` | Senha do banco | **obrigatória** (sem padrão) |
+| `DB_POOL_SIZE` | Tamanho máximo do pool Hikari | `10` |
 | `JWT_SECRET` | Chave de assinatura do token (mínimo 32 caracteres) | **obrigatória** (sem padrão) |
+| `JWT_EXPIRATION_MS` | Validade do token (ms) | `86400000` (24h) |
 | `BOOTSTRAP_ADMIN_ENABLED` / `_EMAIL` / `_USERNAME` / `_PASSWORD` | Criação do primeiro administrador (veja acima) | desligado |
 | `CORS_ALLOWED_ORIGINS` | Origens do front-end permitidas, separadas por vírgula | `http://localhost:5173,http://localhost:3000` |
-| `APP_COOKIE_SECURE` | Exige HTTPS para enviar o cookie JWT; habilite atrás de proxy TLS | `false` (desenvolvimento local) |
+| `APP_COOKIE_SECURE` | Exige HTTPS para enviar o cookie JWT; habilite atrás de proxy TLS | `false` (dev local) |
 | `FORWARD_HEADERS_STRATEGY` | `native` atrás de proxy (nginx), `none` se exposta diretamente | `native` |
-| `JWT_EXPIRATION_MS` | Validade do token (ms) | `86400000` (24h) |
-| `FLYWAY_ENABLED` | Ativa execução de migrações automáticas | `true` |
+| `FLYWAY_ENABLED` | Ativa a execução das migrações | `true` |
 | `DDL_AUTO` | Estratégia de DDL do Hibernate | `validate` |
+| `SHOW_SQL` | Exibe as consultas no log | `false` |
 | `RATE_LIMIT_ENABLED` | Habilita rate limiting por IP | `true` |
-| `RATE_LIMIT_STORAGE` | Armazenamento dos contadores (`memory` ou `redis`) | `memory` (Compose: `redis`)
+| `RATE_LIMIT_STORAGE` | Contadores (`memory` ou `redis`) | `memory` (Compose: `redis`) |
+| `RATE_LIMIT_AUTH_CAPACITY` / `RATE_LIMIT_AUTH_TOKENS` | Limite em `/api/auth/**` | `15` por minuto |
+| `RATE_LIMIT_API_CAPACITY` / `RATE_LIMIT_API_TOKENS` | Limite geral em `/api/**` | `120` por minuto |
 | `REDIS_PASSWORD` | Senha opcional do Redis interno | vazio |
-| `RATE_LIMIT_AUTH_CAPACITY` | Limite de requisições em `/api/auth/**` | `15` por minuto |
-| `RATE_LIMIT_API_CAPACITY` | Limite de requisições gerais em `/api/**` | `120` por minuto |
+| `MANAGEMENT_SERVER_PORT` | Porta de health/métricas (Actuator) | `8081` |
+| `MANAGEMENT_SERVER_ADDRESS` | Endereço da porta de gerenciamento | `127.0.0.1` |
+| `SGFL_ETA_AVG_SPEED_KMH` | Velocidade média usada na estimativa de rota/ETA | `50` |
 
 No IntelliJ: **Run/Debug Configurations → Environment Variables**.
 
 ---
 
-## Execução com Docker (Recomendado)
+## Execução com Docker (recomendado)
 
-O projeto possui orquestração completa via **Docker Compose**, subindo banco PostgreSQL 15, backend Spring Boot e frontend React servido por Nginx com proxy reverso.
+Orquestração completa via **Docker Compose**: PostgreSQL 15, backend Spring Boot e frontend React servido por Nginx com proxy reverso.
 
 ### Antes de subir: crie o arquivo `.env`
 
-Na raiz do projeto (ele já está no `.gitignore`; nunca o versione), copie `.env.example` e substitua os valores de exemplo:
+Na raiz do projeto (já está no `.gitignore`; nunca o versione), copie `.env.example` e substitua os valores:
 
 ```
 POSTGRES_PASSWORD=troque-esta-senha
@@ -165,7 +309,7 @@ BOOTSTRAP_ADMIN_EMAIL=admin@suaempresa.com
 BOOTSTRAP_ADMIN_PASSWORD=uma-senha-forte
 ```
 
-### Subir todo o ambiente com um comando:
+### Subir todo o ambiente com um comando
 
 ```bash
 docker compose up --build -d
@@ -173,26 +317,88 @@ docker compose up --build -d
 
 - **Frontend (Web)**: [http://localhost:5173](http://localhost:5173) ou [http://localhost](http://localhost)
 - **Backend (API)**: [http://localhost:8080/api](http://localhost:8080/api)
-- **PostgreSQL Docker**: `localhost:5433` por padrão (database `sgfl_db`, user `postgres`; altere com `POSTGRES_HOST_PORT` se precisar)
-- **Redis**: privado na rede do Compose; os contadores compartilhados de rate limit não são expostos no host
+- **PostgreSQL Docker**: `localhost:5433` por padrão (database `sgfl_db`, usuário `postgres`; altere com `POSTGRES_HOST_PORT` se precisar)
+- **Redis**: privado na rede do Compose; os contadores de rate limit não são expostos no host
 
-Para visualizar os logs:
 ```bash
-docker compose logs -f backend
+docker compose logs -f backend   # logs
+docker compose down              # parar serviços
 ```
 
-Para parar os serviços:
-```bash
-docker compose down
+Para métricas e alertas locais, suba o Prometheus com `docker compose --profile observability up -d` — painel em `http://localhost:9090`. A porta de gerenciamento do backend (8081) fica apenas na rede Docker; health, readiness/liveness e métricas ficam nela.
+
+Procedimentos de backup, restauração e operação estão em [`docs/OPERATIONS.md`](docs/OPERATIONS.md). Para publicar usando PostgreSQL e Redis gerenciados, veja [`docker-compose.production.yml`](docker-compose.production.yml) e a seção de deploy do mesmo documento — domínio, TLS e segredos ficam no provedor de hospedagem.
+
+---
+
+## Execução portátil (sem Docker e sem PostgreSQL)
+
+O perfil `local` usa H2 embutido em arquivo e serve a interface React pelo próprio backend: não é preciso instalar PostgreSQL, Docker, Nginx ou Node na máquina que só vai executar um JAR já compilado.
+
+Para compilar a partir do código-fonte, instale **Java 17+** e **Node.js 20.19+ (ou 22.12+)** com npm. Na primeira compilação, Maven e npm baixam as dependências pela internet.
+
+```powershell
+# Windows PowerShell: compila frontend + backend e inicia a aplicação
+.\run-local.ps1
+# Se o Windows bloquear o script:
+powershell -NoProfile -ExecutionPolicy Bypass -File .\run-local.ps1
 ```
 
-Para métricas e alertas locais, inicie o Prometheus com `docker compose --profile observability up -d`; o painel fica em `http://localhost:9090`. A porta de gerenciamento do backend (8081) permanece apenas na rede Docker. Health, readiness/liveness e métricas ficam nessa porta.
+```bash
+# Linux/macOS
+bash ./run-local.sh
+```
 
-Procedimentos de backup, restauração e operação estão em [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
+Na primeira execução o script pede e-mail, usuário e senha do administrador. Depois, abra [http://localhost:8080](http://localhost:8080). O banco local fica em `data/sgfl.mv.db` e permanece salvo entre execuções (a pasta `data/` está ignorada pelo Git).
 
-Para publicar os containers usando PostgreSQL e Redis gerenciados, consulte [`docker-compose.production.yml`](docker-compose.production.yml) e a seção de deploy em [`docs/OPERATIONS.md`](docs/OPERATIONS.md). O domínio/TLS e os segredos ficam no provedor de hospedagem.
+- JAR já compilado: `.\run-local.ps1 -NoBuild` (Windows) ou `bash ./run-local.sh --no-build` (Linux/macOS), sem precisar de Node/npm.
+- **Pacote para outra máquina**: `powershell -ExecutionPolicy Bypass -File .\package-portable.ps1` ou `bash ./package-portable.sh`. O resultado vai para `portable-runtime/` e para `sgfl-portatil.zip`. A máquina de destino precisa apenas de **Java 17+** — sem Node, Maven, PostgreSQL ou Docker. Na primeira abertura, o iniciador solicita o administrador local.
+- Para levar os dados de uma instalação existente, pare a aplicação e copie a pasta `data/` junto do pacote.
 
-### Testes ponta a ponta e carga
+O H2 local serve para rodar uma cópia isolada do sistema. Ele não importa os dados do PostgreSQL/Docker nem atende várias máquinas ao mesmo tempo — para uso compartilhado, mantenha PostgreSQL.
+
+---
+
+## Desenvolvimento manual (frontend e backend separados)
+
+Útil para desenvolvimento com hot reload do Vite. O backend no perfil padrão exige PostgreSQL e as variáveis de ambiente configuradas; para evitar isso, use os scripts portáteis acima.
+
+### 1. Backend
+
+```bash
+mvn spring-boot:run      # Maven global
+./mvnw spring-boot:run   # Linux/macOS (wrapper incluso)
+.\mvnw spring-boot:run   # Windows
+```
+
+API em `http://localhost:8080`.
+
+### 2. Frontend
+
+```bash
+cd sgfl-frontend
+npm install
+npm run dev
+```
+
+Interface em `http://localhost:5173`.
+
+---
+
+## Testes e integração contínua
+
+### Local
+
+```bash
+mvn test            # backend (ou .\mvnw test)
+cd sgfl-frontend && npm test       # frontend (node --test)
+npm run lint                     # oxlint
+npm run build                    # build de produção
+```
+
+Os testes gerais usam H2 em memória e **não tocam no seu Postgres local**. Com Docker disponível, os Testcontainers sobem PostgreSQL 15 e Redis reais; sem Docker, esses testes são marcados como ignorados.
+
+### Ponta a ponta e carga
 
 ```bash
 cd sgfl-frontend
@@ -201,117 +407,63 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-Os testes de navegador isolam a interface de uma API falsa para serem reproduzíveis na CI. Os testes do backend continuam cobrindo integração e regras de autorização. O teste de carga k6 e a carga sintética controlada estão em `performance/`; veja o roteiro e os limites em `docs/OPERATIONS.md`.
+O teste de navegador (`e2e/operacao.spec.js`) isola a interface de uma API falsa, tornando-o reproduzível na CI. O script de carga k6 está em `performance/sgfl-api-load.js` (somente leitura); veja o roteiro e os limites em [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
+
+### O que a suíte cobre
+
+| Área | Testes |
+|---|---|
+| Unitário | `JwtServiceTest` (geração/validação de JWT), `SistemaLogisticaTest` (alocação, CNH, status), `PedidoServiceTest` (reserva e devolução de estoque) |
+| Persistência | `EntregaRepositoryTest` (paginação/ordenação), `RecursosRepositoryTest` (busca de motoristas e veículos) |
+| Contrato | `PaginationTest`, `PageResponseTest` (formato de página), `GlobalExceptionHandlerTest` (erros de constraint) |
+| Controller | `EntregaControllerTest` (validação, exclusão, erros), `MotoristaControllerCpfTest` (dígitos verificadores do CPF) |
+| Integração | `AutenticacaoIntegrationTest` (login, cadastro, 401/403 e permissões por perfil) |
+| Migrações | `FlywayMigrationTest` (aplica todas as migrations em PostgreSQL real e valida unicidade/índices) |
+| Rate limiting | `RateLimitingFilterTest` (429 e headers), `RedisRateLimiterIntegrationTest` (duas instâncias compartilham tokens no Redis) |
+| Frontend | `entregaQuery.test.js` (filtros de página, status e busca) |
+| Navegador (E2E) | `operacao.spec.js` — login, busca de entrega, credenciais inválidas e logout |
+
+### CI (GitHub Actions)
+
+O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda a cada `push` e `pull request` em `master`/`main`:
+
+1. **backend-tests** — `mvn -B verify` (testes H2 + Testcontainers) e publica os relatórios do Surefire.
+2. **frontend-build** — `npm ci`, `npm run lint`, `npm test` e `npm run build` no Node 22.
+3. **browser-e2e** — instala o Chromium e executa `npm run test:e2e`, publicando o relatório do Playwright.
 
 ---
 
-## Execução portátil (sem Docker e sem PostgreSQL)
+## Recursos implementados
 
-O perfil `local` usa H2 embutido em arquivo e serve a interface React pelo próprio backend. Assim, não é preciso instalar ou iniciar PostgreSQL, Docker, Nginx ou Node na máquina que só vai executar um JAR já compilado.
+### 1. Migrações versionadas (Flyway)
 
-Para compilar o projeto a partir do código-fonte, instale Java 17 ou superior e Node.js 20.19+ (ou 22.12+) com npm. Na primeira compilação, Maven e npm precisam baixar dependências pela internet. Na pasta raiz, use o script do seu sistema:
+- O banco é gerenciado de forma determinística pelo **Flyway**; o Hibernate roda em `validate`, então a aplicação só sobe se o esquema bater com os mapeamentos JPA.
+- Scripts em `src/main/resources/db/migration/`:
+  - `V1__create_tables.sql` — tabelas `usuarios`, `veiculo`, `caminhao`, `furgao`, `motorista`, `entrega`, índices e FKs.
+  - `V2__seed_initial_data.sql` — carga idempotente de motoristas de demonstração.
+  - `V3__carregar_dados_locais.sql` — carga histórica do ambiente local (não edite: o Flyway valida o checksum).
+  - `V4__corrigir_nomes_colunas.sql` — ajusta nomes de colunas para os mapeamentos JPA.
+  - `V5__integridade_dados_e_concorrencia.sql` — normaliza dados, cria as constraints únicas de placa/CPF e os índices contra dupla alocação.
+  - `V6__clientes_produtos_estoque_pedidos.sql` — tabelas do módulo comercial.
+  - `V7__operacao_avancada.sql` — código de rastreio, janela de agendamento, coordenadas/geocodificação, `valor_frete`, linha do tempo (`entrega_evento`), comprovante e custos.
+- **Regra**: migrations são só estrutura e dados de referência — nunca dumps nem dados de demonstração novos.
 
-```powershell
-# Windows PowerShell: compila frontend + backend e inicia a aplicação
-.\run-local.ps1
-# Se o Windows bloquear a execução do script:
-powershell -NoProfile -ExecutionPolicy Bypass -File .\run-local.ps1
-```
+### 2. Logging estruturado (JSON / correlation ID)
 
-```bash
-# Linux/macOS: compila frontend + backend e inicia a aplicação
-bash ./run-local.sh
-```
+- Em produção/Docker, os logs saem em **JSON estruturado** (`logstash-logback-encoder`), prontos para Elasticsearch, Loki, CloudWatch ou Datadog.
+- O `StructuredLoggingFilter` injeta no MDC: `requestId`, `clientIp`, `httpMethod`, `uri`, `status`, `durationMs`.
+- O `requestId` é devolvido no header `X-Request-ID` e nos erros do `GlobalExceptionHandler`, permitindo rastrear a requisição ponta a ponta.
+- Em desenvolvimento local, mantém o formato colorido legível no console.
 
-Na primeira execução, o script pede e-mail, usuário e senha do administrador. Depois, abra [http://localhost:8080](http://localhost:8080). O banco local fica em `data/sgfl.mv.db` e permanece salvo entre execuções. O diretório `data/` está ignorado pelo Git.
+### 3. Rate limiting
 
-Se o JAR já estiver compilado dentro do projeto, `.\run-local.ps1 -NoBuild` no Windows ou `bash ./run-local.sh --no-build` em Linux/macOS inicia sem Node/npm. Para transportar o aplicativo, gere o pacote portátil abaixo; ele inclui o JAR e os iniciadores que configuram o banco e o primeiro administrador. A UI já está dentro do JAR.
+- Token Bucket por IP, com políticas configuráveis:
+  - **`/api/auth/**`**: 15 requisições/min por IP.
+  - **`/api/**`**: 120 requisições/min por IP.
+- Headers em cada resposta: `X-Rate-Limit-Remaining` e, ao exceder, `Retry-After`.
+- No Compose, o bucket é atualizado atomicamente no **Redis** (relógio do próprio Redis), compartilhado entre réplicas. O modo portátil usa buckets locais em memória.
+- Se o Redis indisponível no modo compartilhado, a API falha fechada com `503` em vez de remover a proteção silenciosamente.
 
-Para montar uma pasta pronta para outro computador, execute `powershell -ExecutionPolicy Bypass -File .\package-portable.ps1` no Windows ou `bash ./package-portable.sh` em Linux/macOS. O resultado fica em `portable-runtime/` e também em `sgfl-portatil.zip` (o ZIP Linux/macOS é criado quando o utilitário `zip` está disponível). Copie essa pasta ou o ZIP para a outra máquina, extraia e inicie com `run-local.bat` ou `run-local.ps1` (Windows) ou `bash ./run-local.sh` (Linux/macOS). A máquina de destino precisa de Java 17 ou superior; ela não precisa de Node/npm, Maven, PostgreSQL ou Docker. Na primeira abertura, o iniciador solicita a criação do administrador local.
-
-O pacote é compilado para a plataforma Java e pode rodar em Windows, Linux ou macOS compatíveis com Java 17+. Para levar também os dados H2 de uma instalação existente, pare a aplicação e copie a pasta `data/` junto do pacote. O pacote recém-gerado não contém dados pessoais.
-
-O H2 local é para executar uma cópia do sistema em um computador. Ele não importa automaticamente os dados do PostgreSQL/Docker nem substitui um banco servidor para uso simultâneo por vários computadores. Para preservar os dados antigos, é preciso migrá-los separadamente; para compartilhar uma base entre máquinas, mantenha PostgreSQL.
-
-## Desenvolvimento manual (frontend e backend separados)
-
-Estes comandos continuam disponíveis para desenvolvimento com Vite. O backend no perfil padrão ainda exige um PostgreSQL iniciado e as variáveis de ambiente configuradas. Para não usar PostgreSQL nem Docker, prefira os scripts portáteis acima.
-
-### 1. Rodar o backend
-
-```bash
-# Com Maven global:
-mvn spring-boot:run
-
-# Ou com o Maven Wrapper (incluso no projeto, não exige Maven instalado):
-./mvnw spring-boot:run     # Linux/macOS
-.\mvnw spring-boot:run     # Windows
-```
-A API sobe em `http://localhost:8080`.
-
-### 2. Rodar o frontend
-
-```bash
-cd sgfl-frontend
-npm install
-npm run dev
-```
-Interface em `http://localhost:5173`.
-
-### 3. Rodar os testes
-
-```bash
-mvn test
-# ou:
-.\mvnw test
-```
-
-Os testes gerais usam banco H2 em memória — não tocam no seu Postgres local. Testes Testcontainers usam PostgreSQL 15 e Redis reais quando Docker está disponível; sem Docker, os testes de integração de container são marcados como ignorados. Cobrem:
-- **Unitário**: geração/validação de JWT (`JwtServiceTest`)
-- **Repositório**: paginação e ordenação estável da listagem de entregas (`EntregaRepositoryTest`)
-- **Controller**: validação de entrada, exclusão, erros (`EntregaControllerTest`)
-- **Integração**: login, cadastro, 401/403 e permissões por perfil de ponta a ponta (`AutenticacaoIntegrationTest`)
-- **Segurança/negócio**: bootstrap do admin (`BootstrapAdminInitializerTest`), CPF (`MotoristaControllerCpfTest`), tradução de erros de constraint (`GlobalExceptionHandlerTest`)
-- **Migração Flyway**: aplica todas as migrations em um PostgreSQL real e confere unicidade, índices e ausência de dados duplicados (`FlywayMigrationTest`)
-- **Rate Limiting**: validação de controle de vazão e resposta 429 (`RateLimitingFilterTest`)
-- **Rate Limiting distribuído**: duas instâncias compartilham tokens no Redis (`RedisRateLimiterIntegrationTest`)
-- **Frontend**: serialização dos filtros de página, status e busca (`npm test`)
-
----
-
-## Recursos Implementados
-
-### 1. Migrações Versionadas (Flyway)
-- Em substituição ao arriscado `hibernate.ddl-auto=update`, o banco agora é gerenciado de forma determinística e versionada pelo **Flyway**.
-- O Hibernate atua em modo `validate` (`spring.jpa.hibernate.ddl-auto=validate`), garantindo que a aplicação só suba se o esquema do banco bater perfeitamente com os mapeamentos das entidades JPA.
-- Scripts localizados em `src/main/resources/db/migration/`:
-  - `V1__create_tables.sql`: cria tabelas (`usuarios`, `veiculo`, `caminhao`, `furgao`, `motorista`, `entrega`), índices e chaves estrangeiras.
-  - `V2__seed_initial_data.sql`: carga idempotente de motoristas de demonstração.
-  - `V3__carregar_dados_locais.sql`: carga histórica do ambiente local (não edite, o Flyway valida o checksum).
-  - `V4__corrigir_nomes_colunas.sql`: ajusta nomes de colunas para os mapeamentos JPA.
-  - `V5__integridade_dados_e_concorrencia.sql`: normaliza dados, cria constraints únicas de placa e CPF e índices contra dupla alocação.
-  - `V6__clientes_produtos_estoque_pedidos.sql`: cria as tabelas do módulo comercial.
-  - **Regra daqui para frente:** nunca use migrations para dados de demonstração ou dumps. Migrations são só estrutura e dados de referência.
-
-### 2. Logging Estruturado (JSON / Correlation ID)
-- Em produção / Docker, os logs são gerados no formato **JSON estruturado** (`logstash-logback-encoder`), prontos para ingestão em Elasticsearch, Loki, CloudWatch ou Datadog.
-- Filtro `StructuredLoggingFilter` injeta automaticamente no **SLF4J MDC**:
-  - `requestId` (Correlation ID obtido via `X-Request-ID` ou gerado via UUID)
-  - `clientIp`, `httpMethod`, `uri`, `status`, `durationMs`
-- O `requestId` é devolvido no header HTTP `X-Request-ID` e incluído nas respostas de erro do `GlobalExceptionHandler`, simplificando o rastreamento ponta a ponta.
-- Em desenvolvimento local, mantém formato colorido legível no console.
-
-### 3. Rate Limiting
-- Proteção contra ataques de força bruta e abuso de recursos usando o algoritmo Token Bucket.
-- Políticas configuráveis e diferenciadas:
-  - **Rotas de Autenticação (`/api/auth/**`)**: limite restritivo de 15 requisições/min por IP.
-  - **Demais Rotas da API (`/api/**`)**: limite de 120 requisições/min por IP.
-- Headers devolvidos em cada resposta:
-  - `X-Rate-Limit-Remaining`: tokens restantes na janela.
-  - `Retry-After`: tempo em segundos para tentar novamente caso exceda.
-- No Compose, cada requisição atualiza atomicamente um bucket no Redis usando o relógio do próprio Redis. Réplicas do backend compartilham os mesmos limites. O modo portátil usa buckets locais em memória e serve a uma única instância.
-- Se o Redis estiver indisponível no modo compartilhado, requisições de API falham fechadas com `503` para não remover a proteção silenciosamente.
-- Resposta padronizada com HTTP `429 Too Many Requests`:
 ```json
 {
   "timestamp": "2026-09-28T...",
@@ -322,16 +474,92 @@ Os testes gerais usam banco H2 em memória — não tocam no seu Postgres local.
 }
 ```
 
+### 4. Segurança
+
+- JWT em cookie `HttpOnly`, `SameSite=Lax`, com CSRF próprio enviado por header `X-XSRF-TOKEN`.
+- Senhas com BCrypt, CORS restrito às origens configuradas, autorização por perfil aplicada no `SecurityConfig`.
+- Nenhuma credencial fixa no código; primeiro admin criado por variáveis de ambiente.
+
+---
+
+## Estrutura do repositório
+
+```
+PROJETO-SGFL_LogiTech/
+├── src/                          # Backend Spring Boot
+│   ├── main/java/com/logitech/sgfl/
+│   │   ├── controller/           # Endpoints REST
+│   │   ├── service/              # Regras de negócio
+│   │   ├── repository/           # Spring Data JPA + specifications
+│   │   ├── me/                   # Entidades JPA
+│   │   ├── dto/                  # Contratos de entrada/saída
+│   │   ├── security/             # Spring Security + JWT
+│   │   ├── exceptions/           # Exceções e GlobalExceptionHandler
+│   │   ├── ratelimit/            # Token Bucket (memória e Redis)
+│   │   ├── logging/              # Logs estruturados + correlation ID
+│   │   └── config/               # Bootstrap do admin, paginação
+│   ├── main/resources/db/migration/   # Flyway V1..V7
+│   └── test/java/                # Suíte JUnit 5 + Testcontainers
+├── sgfl-frontend/                # React + Vite
+│   ├── src/                      # Telas, hooks e api.js
+│   └── e2e/                      # Testes Playwright
+├── docs/                         # OPERATIONS.md, ROADMAP_IMPLEMENTADO.md
+├── scripts/                      # Backup/restore do PostgreSQL
+├── performance/                  # Carga k6 e scripts SQL
+├── observability/                # Regras do Prometheus
+├── deployment/                   # Exemplo de .env de produção
+├── .github/workflows/ci.yml      # CI (backend, frontend, E2E)
+├── docker-compose.yml            # Ambiente completo
+├── docker-compose.production.yml # Publicação com serviços gerenciados
+├── Dockerfile
+├── ARCHITECTURE.md · SECURITY.md · README.md
+└── run-local.* · package-portable.*   # Execução portátil
+```
+
 ---
 
 ## Roadmap
 
+### Concluído
+
 - [x] Containerização (Docker & Docker Compose)
-- [x] Logging estruturado (Logstash JSON + Correlation ID)
-- [x] Rate limiting (Bucket4j por IP)
-- [x] Limites compartilhados por Redis e modo portátil em memória
+- [x] Migrações versionadas de banco (Flyway) no lugar de `ddl-auto=update`
+- [x] Logging estruturado (Logstash JSON + correlation ID)
+- [x] Rate limiting por IP com buckets compartilhados por Redis e modo portátil em memória
 - [x] CSRF para autenticação por cookie JWT
 - [x] Health/readiness, métricas Prometheus e alertas operacionais
 - [x] Scripts seguros de backup e restauração do PostgreSQL
-- [x] Busca e paginação de motoristas e veículos
-- [x] Migrações versionadas de banco (Flyway) no lugar de `ddl-auto=update`
+- [x] Busca e paginação de motoristas, veículos, entregas e módulo comercial
+- [x] Portal público de rastreio (`SGFL-XXXXXXXXXXXX`) com linha do tempo de eventos
+- [x] Comprovante de entrega (foto, assinatura, recebedor e horário)
+- [x] Dashboard de KPIs e alertas operacionais
+- [x] Custos por entrega e margem sobre o valor do frete
+- [x] Relatórios de entregas em CSV e PDF
+- [x] Importação em CSV de clientes, produtos e entregas
+- [x] Estimativa de rota/ETA e janela de agendamento
+- [x] PWA básico (manifest + service worker)
+- [x] CI com testes de backend, frontend e navegador
+
+### Próximos passos
+
+- [ ] Mapa com geocodificação e rota por provedor externo (hoje: estimativa Haversine e velocidade média)
+- [ ] Notificações reais por SMTP e WhatsApp via provedor configurado
+- [ ] Auditoria transversal de cliente, produto e pedido (além da linha do tempo da entrega)
+- [ ] PWA completo para o motorista, com câmera, assinatura e sincronização offline
+- [ ] Custos detalhados por categoria (combustível, pedágio, manutenção)
+- [ ] Baixa de estoque no despacho/envio, caso o negócio passe a reservar no pedido e baixar no envio
+- [ ] ETA com histórico e provedor de trânsito
+
+O histórico detalhado está em [`docs/ROADMAP_IMPLEMENTADO.md`](docs/ROADMAP_IMPLEMENTADO.md).
+
+---
+
+## Documentação relacionada
+
+| Documento | Conteúdo |
+|---|---|
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Mapa da arquitetura e dos módulos |
+| [`docs/OPERATIONS.md`](docs/OPERATIONS.md) | Backup, restauração, deploy, limites de carga e rotinas operacionais |
+| [`docs/ROADMAP_IMPLEMENTADO.md`](docs/ROADMAP_IMPLEMENTADO.md) | Evolução do roadmap do projeto |
+| [`SECURITY.md`](SECURITY.md) | Política de segurança e divulgação de vulnerabilidades |
+| [`.env.example`](.env.example) | Modelo de configuração para o Docker Compose |

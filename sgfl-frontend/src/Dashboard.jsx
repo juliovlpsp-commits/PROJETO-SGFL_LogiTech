@@ -19,6 +19,9 @@ import {
     UserIcon
 } from './dashboardComponents';
 import { formatarPeso } from './deliveryFormatting';
+import AssinaturaCanvas from './AssinaturaCanvas';
+import MapaEntrega from './MapaEntrega';
+import { enfileirar, lerFila, reenviarFila } from './offlineQueue';
 
 export default function Dashboard({ onLogout }) {
 
@@ -65,6 +68,31 @@ export default function Dashboard({ onLogout }) {
     const [entregaRastreio, setEntregaRastreio] = useState(null);
     const [timelineRastreio, setTimelineRastreio] = useState([]);
     const [carregandoRastreio, setCarregandoRastreio] = useState(false);
+
+    // Custos da entrega
+    const [entregaCustos, setEntregaCustos] = useState(null);
+    const [listaCustos, setListaCustos] = useState([]);
+    const [carregandoCustos, setCarregandoCustos] = useState(false);
+    const [custoTipo, setCustoTipo] = useState('COMBUSTIVEL');
+    const [custoDescricao, setCustoDescricao] = useState('');
+    const [custoValor, setCustoValor] = useState('');
+    const [salvandoCusto, setSalvandoCusto] = useState(false);
+
+    // Comprovante de entrega
+    const [entregaComprovante, setEntregaComprovante] = useState(null);
+    const [nomeRecebedor, setNomeRecebedor] = useState('');
+    const [observacaoComprovante, setObservacaoComprovante] = useState('');
+    const [fotoComprovante, setFotoComprovante] = useState(null);
+    const [assinaturaComprovante, setAssinaturaComprovante] = useState('');
+    const [salvandoComprovante, setSalvandoComprovante] = useState(false);
+
+    // Mapa / geocodificação
+    const [entregaMapa, setEntregaMapa] = useState(null);
+    const [coordenadasMapa, setCoordenadasMapa] = useState(null);
+    const [rotaMapa, setRotaMapa] = useState(null);
+    const [etaHistorico, setEtaHistorico] = useState([]);
+    const [geocodificandoMapa, setGeocodificandoMapa] = useState(false);
+    const [mensagemMapa, setMensagemMapa] = useState('');
 
     const {
         theme: baseTheme,
@@ -144,6 +172,20 @@ export default function Dashboard({ onLogout }) {
                 } else {
                     error.code = 'NETWORK_ERROR';
                     error.message = 'Não foi possível conectar ao servidor.';
+
+                    // Sem resposta do servidor: mutações (POST/PUT/PATCH/DELETE)
+                    // vão para a fila offline e voltam quando a rede retornar.
+                    const metodo = options.method || 'GET';
+
+                    if (metodo !== 'GET') {
+                        enfileirar({
+                            url,
+                            method: metodo,
+                            body: options.body ?? null
+                        });
+                        error.message =
+                            'Sem conexão — ação guardada e será enviada quando a rede voltar.';
+                    }
                 }
                 throw error;
             }
@@ -361,6 +403,31 @@ export default function Dashboard({ onLogout }) {
         return () => window.clearTimeout(timeout);
     }, [carregarIndicadoresOperacionais, entregas]);
 
+    // Reenvia ações que ficaram na fila offline (app aberto de novo ou
+    // a rede voltando).
+    useEffect(() => {
+        const reenviarPendencias = async () => {
+            if (lerFila().length === 0) return;
+
+            const pendentes = await reenviarFila(request);
+
+            if (pendentes > 0) {
+                mostrarMensagem(
+                    `${pendentes} ação(ões) aguardando conexão para serem enviadas.`,
+                    'info'
+                );
+            } else {
+                mostrarMensagem('Ações offline reenviadas com sucesso.', 'sucesso');
+                await carregarEntregas();
+            }
+        };
+
+        reenviarPendencias();
+        window.addEventListener('online', reenviarPendencias);
+
+        return () => window.removeEventListener('online', reenviarPendencias);
+    }, [request, mostrarMensagem, carregarEntregas]);
+
     const abrirRastreio = async (item) => {
         setEntregaRastreio(item);
         setTimelineRastreio([]);
@@ -376,6 +443,212 @@ export default function Dashboard({ onLogout }) {
         }
     };
 
+    // ------------------------------------------------------------------
+    // Custos da entrega
+    // ------------------------------------------------------------------
+    const abrirCustos = async (item) => {
+        setEntregaCustos(item);
+        setListaCustos([]);
+        setCustoTipo('COMBUSTIVEL');
+        setCustoDescricao('');
+        setCustoValor('');
+        setCarregandoCustos(true);
+
+        try {
+            const custos = await request(`/operacional/entregas/${item.id}/custos`);
+            setListaCustos(Array.isArray(custos) ? custos : []);
+        } catch (error) {
+            tratarErro(error, 'Não foi possível carregar os custos da entrega.');
+        } finally {
+            setCarregandoCustos(false);
+        }
+    };
+
+    const handleAdicionarCusto = async (event) => {
+        event.preventDefault();
+
+        if (!custoValor || Number(custoValor) <= 0) {
+            mostrarMensagem('Informe um valor maior que zero para o custo.', 'erro');
+            return;
+        }
+
+        setSalvandoCusto(true);
+
+        try {
+            await request(`/operacional/entregas/${entregaCustos.id}/custos`, {
+                method: 'POST',
+                body: {
+                    tipo: custoTipo,
+                    descricao: custoDescricao.trim() || null,
+                    valor: Number(custoValor)
+                }
+            });
+
+            const custos = await request(`/operacional/entregas/${entregaCustos.id}/custos`);
+            setListaCustos(Array.isArray(custos) ? custos : []);
+            setCustoDescricao('');
+            setCustoValor('');
+            mostrarMensagem('Custo registrado com sucesso.', 'sucesso');
+        } catch (error) {
+            tratarErro(error, 'Não foi possível registrar o custo.');
+        } finally {
+            setSalvandoCusto(false);
+        }
+    };
+
+    // ------------------------------------------------------------------
+    // Comprovante de entrega (foto + assinatura)
+    // ------------------------------------------------------------------
+    const abrirComprovante = async (item) => {
+        setEntregaComprovante(item);
+        setNomeRecebedor('');
+        setObservacaoComprovante('');
+        setFotoComprovante(null);
+        setAssinaturaComprovante('');
+    };
+
+    const handleSelecionarFoto = (event) => {
+        const arquivo = event.target.files?.[0] || null;
+        setFotoComprovante(arquivo);
+    };
+
+    const handleSalvarComprovante = async (event) => {
+        event.preventDefault();
+
+        if (!nomeRecebedor.trim()) {
+            mostrarMensagem('Informe o nome de quem recebeu a entrega.', 'erro');
+            return;
+        }
+
+        setSalvandoComprovante(true);
+
+        try {
+            const form = new FormData();
+
+            form.append(
+                'dados',
+                new Blob(
+                    [
+                        JSON.stringify({
+                            nomeRecebedor: nomeRecebedor.trim(),
+                            assinatura: assinaturaComprovante || null,
+                            observacao: observacaoComprovante.trim() || null
+                        })
+                    ],
+                    { type: 'application/json' }
+                )
+            );
+
+            if (fotoComprovante) {
+                form.append('foto', fotoComprovante);
+            }
+
+            await api.post(`/entregas/${entregaComprovante.id}/comprovante`, form);
+
+            mostrarMensagem('Comprovante registrado com sucesso.', 'sucesso');
+            setEntregaComprovante(null);
+            await carregarEntregas();
+        } catch (error) {
+            tratarErro(error, 'Não foi possível registrar o comprovante.');
+        } finally {
+            setSalvandoComprovante(false);
+        }
+    };
+
+    // ------------------------------------------------------------------
+    // Mapa, geocodificação e rota
+    // ------------------------------------------------------------------
+    const abrirMapa = async (item) => {
+        setEntregaMapa(item);
+        setRotaMapa(null);
+        setEtaHistorico([]);
+        setMensagemMapa('');
+
+        const coordenadas = {
+            latitudeOrigem: item.latitudeOrigem,
+            longitudeOrigem: item.longitudeOrigem,
+            latitudeDestino: item.latitudeDestino,
+            longitudeDestino: item.longitudeDestino
+        };
+
+        setCoordenadasMapa(coordenadas);
+
+        const possuiAsDuas =
+            coordenadas.latitudeOrigem != null &&
+            coordenadas.longitudeOrigem != null &&
+            coordenadas.latitudeDestino != null &&
+            coordenadas.longitudeDestino != null;
+
+        if (possuiAsDuas) {
+            await carregarRota(item.id);
+        } else {
+            setMensagemMapa(
+                'Esta entrega ainda não tem coordenadas. Use "Geocodificar endereços" para preencher.'
+            );
+        }
+    };
+
+    const carregarRota = async (entregaId) => {
+        try {
+            const estimativa = await request(`/entregas/${entregaId}/rota`);
+            setRotaMapa(estimativa);
+        } catch (error) {
+            tratarErro(error, 'Não foi possível calcular a rota.');
+        }
+
+        try {
+            const historico = await request(`/entregas/${entregaId}/rota/historico`);
+            setEtaHistorico(Array.isArray(historico) ? historico : []);
+        } catch {
+            // Histórico é complementar: falha não pode quebrar o mapa.
+        }
+    };
+
+    const geocodificarEnderecos = async () => {
+        if (!entregaMapa) return;
+
+        setGeocodificandoMapa(true);
+        setMensagemMapa('');
+
+        try {
+            const coordenadas = { ...coordenadasMapa };
+
+            if (!coordenadas.latitudeOrigem || !coordenadas.longitudeOrigem) {
+                const origem = await request(
+                    `/geocodificacao?endereco=${encodeURIComponent(entregaMapa.enderecoOrigem || '')}`
+                );
+                coordenadas.latitudeOrigem = origem.latitude;
+                coordenadas.longitudeOrigem = origem.longitude;
+            }
+
+            if (!coordenadas.latitudeDestino || !coordenadas.longitudeDestino) {
+                const destino = await request(
+                    `/geocodificacao?endereco=${encodeURIComponent(entregaMapa.enderecoDestino || '')}`
+                );
+                coordenadas.latitudeDestino = destino.latitude;
+                coordenadas.longitudeDestino = destino.longitude;
+            }
+
+            await request(`/entregas/${entregaMapa.id}/coordenadas`, {
+                method: 'PUT',
+                body: {
+                    latitudeOrigem: coordenadas.latitudeOrigem,
+                    longitudeOrigem: coordenadas.longitudeOrigem,
+                    latitudeDestino: coordenadas.latitudeDestino,
+                    longitudeDestino: coordenadas.longitudeDestino
+                }
+            });
+
+            setCoordenadasMapa(coordenadas);
+            setMensagemMapa('Coordenadas geocodificadas e salvas.');
+            await carregarRota(entregaMapa.id);
+        } catch (error) {
+            tratarErro(error, 'Não foi possível geocodificar os endereços.');
+            setMensagemMapa('Falha na geocodificação — verifique os endereços ou tente mais tarde.');
+        } finally {
+            setGeocodificandoMapa(false);
+        }
+    };
 
     useEffect(() => {
         const workspace = workspaceRef.current;
@@ -974,6 +1247,47 @@ export default function Dashboard({ onLogout }) {
                     >
                         Rastrear
                     </button>
+
+                    <button
+                        type="button"
+                        disabled={
+                            emAndamento
+                        }
+                        onClick={() => abrirCustos(item)}
+                        style={
+                            styles.btnSecondary
+                        }
+                    >
+                        Custos
+                    </button>
+
+                    <button
+                        type="button"
+                        disabled={
+                            emAndamento
+                        }
+                        onClick={() => abrirMapa(item)}
+                        style={
+                            styles.btnSecondary
+                        }
+                    >
+                        Mapa
+                    </button>
+
+                    {item.status === 'EM_TRANSITO' && (
+                        <button
+                            type="button"
+                            disabled={
+                                emAndamento
+                            }
+                            onClick={() => abrirComprovante(item)}
+                            style={
+                                styles.btnSecondary
+                            }
+                        >
+                            Comprovante
+                        </button>
+                    )}
 
                     <button
                         type="button"
@@ -2008,6 +2322,360 @@ export default function Dashboard({ onLogout }) {
                                 ))}
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {entregaCustos && (
+                <div style={styles.modalOverlay}>
+                    <div style={{ ...styles.modal, maxWidth: '640px' }}>
+                        <div style={styles.modalHeader}>
+                            <div>
+                                <h3 style={styles.modalTitle}>
+                                    Custos da entrega #{entregaCustos.id}
+                                </h3>
+                                <p style={styles.modalSubtitle}>
+                                    Combustível, pedágio, manutenção e demais despesas desta entrega.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setEntregaCustos(null)}
+                                style={styles.modalClose}
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <div
+                            style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                gap: '10px',
+                                padding: '10px 12px',
+                                borderRadius: '10px',
+                                background: theme.surfaceAlt,
+                                border: `1px solid ${theme.border}`,
+                                marginBottom: '14px',
+                                fontSize: '12px'
+                            }}
+                        >
+                            <span style={{ color: theme.inkSoft }}>Total registrado</span>
+                            <strong>
+                                {Number(
+                                    listaCustos.reduce(
+                                        (soma, custo) => soma + Number(custo.valor || 0),
+                                        0
+                                    )
+                                ).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </strong>
+                        </div>
+
+                        {carregandoCustos ? (
+                            <div style={styles.emptyState}>Carregando custos…</div>
+                        ) : listaCustos.length === 0 ? (
+                            <div style={styles.emptyState}>
+                                Nenhum custo registrado para esta entrega.
+                            </div>
+                        ) : (
+                            <div style={{ display: 'grid', gap: '8px', marginBottom: '16px' }}>
+                                {listaCustos.map((custo) => (
+                                    <div
+                                        key={custo.id}
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            gap: '10px',
+                                            alignItems: 'center',
+                                            padding: '8px 12px',
+                                            borderRadius: '10px',
+                                            background: theme.surfaceAlt,
+                                            border: `1px solid ${theme.border}`,
+                                            fontSize: '11px'
+                                        }}
+                                    >
+                                        <div>
+                                            <strong>{custo.tipo}</strong>
+                                            {custo.descricao && (
+                                                <div
+                                                    style={{
+                                                        color: theme.inkSoft,
+                                                        fontSize: '10px',
+                                                        marginTop: '2px'
+                                                    }}
+                                                >
+                                                    {custo.descricao}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div style={{ textAlign: 'right' }}>
+                                            <strong>
+                                                {Number(custo.valor).toLocaleString('pt-BR', {
+                                                    style: 'currency',
+                                                    currency: 'BRL'
+                                                })}
+                                            </strong>
+                                            <div style={{ color: theme.inkSoft, fontSize: '9px' }}>
+                                                {custo.criadoEm
+                                                    ? new Date(custo.criadoEm).toLocaleString('pt-BR')
+                                                    : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleAdicionarCusto} style={styles.form}>
+                            <div
+                                style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '1fr 1fr',
+                                    gap: '10px'
+                                }}
+                            >
+                                <label style={styles.label}>
+                                    Tipo
+                                    <select
+                                        value={custoTipo}
+                                        onChange={(e) => setCustoTipo(e.target.value)}
+                                        style={styles.input}
+                                    >
+                                        <option value="COMBUSTIVEL">Combustível</option>
+                                        <option value="PEDAGIO">Pedágio</option>
+                                        <option value="MANUTENCAO">Manutenção</option>
+                                        <option value="OUTRO">Outro</option>
+                                    </select>
+                                </label>
+                                <label style={styles.label}>
+                                    Valor (R$)
+                                    <input
+                                        type="number"
+                                        min="0.01"
+                                        step="0.01"
+                                        value={custoValor}
+                                        onChange={(e) => setCustoValor(e.target.value)}
+                                        placeholder="0,00"
+                                        style={styles.input}
+                                    />
+                                </label>
+                            </div>
+                            <label style={styles.label}>
+                                Descrição (opcional)
+                                <input
+                                    type="text"
+                                    value={custoDescricao}
+                                    onChange={(e) => setCustoDescricao(e.target.value)}
+                                    placeholder="Ex.: abastecimento na OS340"
+                                    style={styles.input}
+                                />
+                            </label>
+                            <div style={styles.modalActions}>
+                                <button
+                                    type="button"
+                                    onClick={() => setEntregaCustos(null)}
+                                    style={styles.btnCancel}
+                                >
+                                    Fechar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={salvandoCusto}
+                                    style={salvandoCusto ? styles.btnDisabled : styles.btnPrimary}
+                                >
+                                    {salvandoCusto ? 'Salvando…' : 'Adicionar custo'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {entregaComprovante && (
+                <div style={styles.modalOverlay}>
+                    <div style={{ ...styles.modal, maxWidth: '620px' }}>
+                        <div style={styles.modalHeader}>
+                            <div>
+                                <h3 style={styles.modalTitle}>
+                                    Comprovante da entrega #{entregaComprovante.id}
+                                </h3>
+                                <p style={styles.modalSubtitle}>
+                                    Foto, assinatura e horário de quem recebeu.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setEntregaComprovante(null)}
+                                style={styles.modalClose}
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSalvarComprovante} style={styles.form}>
+                            <label style={styles.label}>
+                                Quem recebeu *
+                                <input
+                                    type="text"
+                                    value={nomeRecebedor}
+                                    onChange={(e) => setNomeRecebedor(e.target.value)}
+                                    placeholder="Nome completo de quem assina"
+                                    style={styles.input}
+                                />
+                            </label>
+
+                            <label style={styles.label}>
+                                Foto do comprovante (opcional)
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    onChange={handleSelecionarFoto}
+                                    style={{ ...styles.input, padding: '8px' }}
+                                />
+                            </label>
+
+                            {fotoComprovante && (
+                                <div style={{ fontSize: '10px', color: theme.inkSoft }}>
+                                    Arquivo selecionado: {fotoComprovante.name}
+                                </div>
+                            )}
+
+                            <div style={styles.label}>Assinatura de quem recebeu</div>
+                            <AssinaturaCanvas
+                                onChange={setAssinaturaComprovante}
+                                tema={theme}
+                            />
+
+                            <label style={styles.label}>
+                                Observação (opcional)
+                                <input
+                                    type="text"
+                                    value={observacaoComprovante}
+                                    onChange={(e) => setObservacaoComprovante(e.target.value)}
+                                    placeholder="Ex.: entrega conferida no balcão"
+                                    style={styles.input}
+                                />
+                            </label>
+
+                            <div style={styles.modalActions}>
+                                <button
+                                    type="button"
+                                    onClick={() => setEntregaComprovante(null)}
+                                    style={styles.btnCancel}
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={salvandoComprovante}
+                                    style={
+                                        salvandoComprovante ? styles.btnDisabled : styles.btnPrimary
+                                    }
+                                >
+                                    {salvandoComprovante ? 'Salvando…' : 'Registrar comprovante'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {entregaMapa && (
+                <div style={styles.modalOverlay}>
+                    <div style={{ ...styles.modal, maxWidth: '760px' }}>
+                        <div style={styles.modalHeader}>
+                            <div>
+                                <h3 style={styles.modalTitle}>
+                                    Mapa da entrega #{entregaMapa.id}
+                                </h3>
+                                <p style={styles.modalSubtitle}>
+                                    {entregaMapa.enderecoOrigem || 'Origem não informada'} →{' '}
+                                    {entregaMapa.enderecoDestino}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setEntregaMapa(null)}
+                                style={styles.modalClose}
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <MapaEntrega
+                            coordenadas={coordenadasMapa}
+                            rota={rotaMapa}
+                            tema={theme}
+                        />
+
+                        {mensagemMapa && (
+                            <div
+                                style={{
+                                    fontSize: '11px',
+                                    color: theme.inkSoft,
+                                    marginTop: '10px'
+                                }}
+                            >
+                                {mensagemMapa}
+                            </div>
+                        )}
+
+                        {etaHistorico.length > 0 && (
+                            <div style={{ marginTop: '12px' }}>
+                                <div style={{ ...styles.label, marginBottom: '6px' }}>
+                                    Histórico de previsões (ETA)
+                                </div>
+                                <div style={{ display: 'grid', gap: '6px' }}>
+                                    {etaHistorico.slice(0, 5).map((eta) => (
+                                        <div
+                                            key={eta.id}
+                                            style={{
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                gap: '10px',
+                                                fontSize: '10px',
+                                                color: theme.inkSoft
+                                            }}
+                                        >
+                                            <span>
+                                                {eta.distanciaKm} km · {eta.duracaoMinutos} min ·{' '}
+                                                {eta.fonte}
+                                                {eta.previsaoChegada &&
+                                                    ` · chegada ${new Date(
+                                                        eta.previsaoChegada
+                                                    ).toLocaleString('pt-BR')}`}
+                                            </span>
+                                            <span>
+                                                {eta.criadoEm
+                                                    ? new Date(eta.criadoEm).toLocaleString('pt-BR')
+                                                    : ''}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div style={styles.modalActions}>
+                            <button
+                                type="button"
+                                onClick={() => setEntregaMapa(null)}
+                                style={styles.btnCancel}
+                            >
+                                Fechar
+                            </button>
+                            <button
+                                type="button"
+                                disabled={geocodificandoMapa}
+                                onClick={geocodificarEnderecos}
+                                style={
+                                    geocodificandoMapa ? styles.btnDisabled : styles.btnSecondary
+                                }
+                            >
+                                {geocodificandoMapa ? 'Geocodificando…' : 'Geocodificar endereços'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

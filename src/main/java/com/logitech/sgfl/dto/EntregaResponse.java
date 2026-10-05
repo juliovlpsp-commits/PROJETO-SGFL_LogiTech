@@ -19,6 +19,10 @@ public record EntregaResponse(
         LocalDateTime iniciadaEm,
         LocalDateTime entregueEm,
         BigDecimal valorFrete,
+        Double latitudeOrigem,
+        Double longitudeOrigem,
+        Double latitudeDestino,
+        Double longitudeDestino,
         VeiculoResponse veiculo,
         MotoristaResponse motorista
 ) {
@@ -31,6 +35,10 @@ public record EntregaResponse(
                 entrega.getIniciadaEm(),
                 entrega.getEntregueEm(),
                 entrega.getValorFrete(),
+                entrega.getLatitudeOrigem(),
+                entrega.getLongitudeOrigem(),
+                entrega.getLatitudeDestino(),
+                entrega.getLongitudeDestino(),
                 VeiculoResponse.from(entrega.getVeiculo()),
                 entrega.getMotorista() == null ? null : MotoristaResponse.from(entrega.getMotorista()));
     }

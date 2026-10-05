@@ -2,6 +2,8 @@ package com.logitech.sgfl.controller;
 
 import com.logitech.sgfl.dto.ComprovanteEntregaRequest;
 import com.logitech.sgfl.dto.ComprovanteEntregaResponse;
+import com.logitech.sgfl.dto.CoordenadasEntregaRequest;
+import com.logitech.sgfl.dto.EntregaResponse;
 import com.logitech.sgfl.dto.EntregaTimelineResponse;
 import com.logitech.sgfl.exceptions.RecursoNaoEncontradoException;
 import com.logitech.sgfl.exceptions.RegraNegocioException;
@@ -106,5 +108,64 @@ public class EntregaOperacaoController {
         auditoriaService.registrar(entrega, "COMPROVANTE_ANEXADO", entrega.getStatus(), entrega.getStatus(),
                 "Comprovante registrado por " + request.nomeRecebedor().trim());
         return ResponseEntity.ok(ComprovanteEntregaResponse.from(salvo));
+    }
+
+    /**
+     * Atualiza as coordenadas de rota da entrega (geocodificação dos
+     * endereços). É o que liga a entrega ao cálculo de rota/ETA e ao
+     * mapa: sem coordenadas o sistema só consegue estimar em linha reta.
+     */
+    @PutMapping("/{id}/coordenadas")
+    public ResponseEntity<EntregaResponse> atualizarCoordenadas(
+            @PathVariable Long id,
+            @Valid @RequestBody CoordenadasEntregaRequest request
+    ) {
+
+        /*
+         * Valida o payload antes de tocar no banco: entrada inválida
+         * devolve 400 mesmo quando a entrega não existe.
+         */
+        boolean temOrigem = request.latitudeOrigem() != null || request.longitudeOrigem() != null;
+        boolean temDestino = request.latitudeDestino() != null || request.longitudeDestino() != null;
+
+        if (!temOrigem && !temDestino) {
+            throw new RegraNegocioException(
+                    "Informe ao menos a origem ou o destino da rota.");
+        }
+
+        if ((request.latitudeOrigem() == null) != (request.longitudeOrigem() == null)) {
+            throw new RegraNegocioException(
+                    "Informe latitude e longitude da origem juntas.");
+        }
+
+        if ((request.latitudeDestino() == null) != (request.longitudeDestino() == null)) {
+            throw new RegraNegocioException(
+                    "Informe latitude e longitude do destino juntas.");
+        }
+
+        Entrega entrega = entregaRepository.findById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Entrega não encontrada: " + id));
+
+        if (temOrigem) {
+            entrega.setLatitudeOrigem(request.latitudeOrigem());
+            entrega.setLongitudeOrigem(request.longitudeOrigem());
+        }
+
+        if (temDestino) {
+            entrega.setLatitudeDestino(request.latitudeDestino());
+            entrega.setLongitudeDestino(request.longitudeDestino());
+        }
+
+        Entrega salva = entregaRepository.save(entrega);
+
+        auditoriaService.registrar(
+                salva,
+                "COORDENADAS_ATUALIZADAS",
+                salva.getStatus(),
+                salva.getStatus(),
+                "Coordenadas de rota atualizadas pelo operador."
+        );
+
+        return ResponseEntity.ok(EntregaResponse.from(salva));
     }
 }

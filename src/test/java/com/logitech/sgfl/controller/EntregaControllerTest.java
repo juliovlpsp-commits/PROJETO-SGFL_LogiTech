@@ -24,7 +24,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.Optional;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.closeTo;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -439,5 +442,126 @@ class EntregaControllerTest {
                 entregaRepository,
                 never()
         ).deleteById(anyLong());
+    }
+
+    @Test
+    void deveAtualizarCoordenadasDaEntrega()
+            throws Exception {
+
+        Entrega entrega = new Entrega(
+                "São Paulo",
+                "Campinas",
+                10
+        );
+
+        ReflectionTestUtils.setField(
+                entrega,
+                "id",
+                1L
+        );
+
+        entrega.setStatus(StatusEntrega.PENDENTE);
+
+        when(entregaRepository.findById(1L))
+                .thenReturn(Optional.of(entrega));
+
+        when(entregaRepository.save(any(Entrega.class)))
+                .thenReturn(entrega);
+
+        mockMvc.perform(
+                        put("/api/entregas/1/coordenadas")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{"
+                                        + "\"latitudeOrigem\":-23.55,"
+                                        + "\"longitudeOrigem\":-46.63,"
+                                        + "\"latitudeDestino\":-22.90,"
+                                        + "\"longitudeDestino\":-47.06"
+                                        + "}")
+                )
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$.latitudeDestino")
+                                .value(closeTo(-22.90, 0.001))
+                )
+                .andExpect(
+                        jsonPath("$.longitudeOrigem")
+                                .value(closeTo(-46.63, 0.001))
+                );
+
+        verify(auditoriaService).registrar(
+                any(Entrega.class),
+                eq("COORDENADAS_ATUALIZADAS"),
+                any(),
+                any(),
+                org.mockito.ArgumentMatchers.anyString()
+        );
+    }
+
+    @Test
+    void deveRejeitarCoordenadaForaDeFaixa()
+            throws Exception {
+
+        mockMvc.perform(
+                        put("/api/entregas/1/coordenadas")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{"
+                                        + "\"latitudeOrigem\":999,"
+                                        + "\"longitudeOrigem\":-46.63"
+                                        + "}")
+                )
+                .andExpect(status().isBadRequest());
+
+        verify(entregaRepository, never())
+                .save(any(Entrega.class));
+    }
+
+    @Test
+    void deveRejeitarCoordenadasVazias()
+            throws Exception {
+
+        mockMvc.perform(
+                        put("/api/entregas/1/coordenadas")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{}")
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(
+                        jsonPath("$.message")
+                                .value(containsString("ao menos"))
+                );
+    }
+
+    @Test
+    void deveExigirLatitudeELongitudeDaOrigemJuntas()
+            throws Exception {
+
+        mockMvc.perform(
+                        put("/api/entregas/1/coordenadas")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"latitudeOrigem\":-23.55}")
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(
+                        jsonPath("$.message")
+                                .value(containsString("juntas"))
+                );
+    }
+
+    @Test
+    void deveRetornar404ParaCoordenadasDeEntregaInexistente()
+            throws Exception {
+
+        when(entregaRepository.findById(404L))
+                .thenReturn(Optional.empty());
+
+        mockMvc.perform(
+                        put("/api/entregas/404/coordenadas")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{"
+                                        + "\"latitudeOrigem\":-23.55,"
+                                        + "\"longitudeOrigem\":-46.63"
+                                        + "}")
+                )
+                .andExpect(status().isNotFound());
     }
 }

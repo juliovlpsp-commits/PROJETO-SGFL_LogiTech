@@ -1,13 +1,6 @@
-# SGFL — Sistema de Gestão de Frota e Logística
+# SGFL - Sistema de Gestão de Frota e Logística
 
-[![CI](https://github.com/juliovlpsp-commits/PROJETO-SGFL_LogiTech/actions/workflows/ci.yml/badge.svg)](https://github.com/juliovlpsp-commits/PROJETO-SGFL_LogiTech/actions/workflows/ci.yml)
-![Java](https://img.shields.io/badge/Java-17-e76f00?logo=openjdk&logoColor=white)
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5.16-6db33f?logo=springboot&logoColor=white)
-![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=black)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169e1?logo=postgresql&logoColor=white)
-![Docker](https://img.shields.io/badge/build-Docker_Compose-2496ed?logo=docker&logoColor=white)
-
-Sistema web de gestão de frota e logística com API REST em **Spring Boot** e interface em **React**: entregas, veículos, motoristas, clientes, produtos, estoque e pedidos — com autenticação JWT em cookie, regras de negócio no servidor, tratamento centralizado de erros e testes automatizados.
+Sistema web com API REST em Spring Boot e frontend React para gestão de frota, entregas, clientes, produtos, estoque e pedidos. Inclui autenticação JWT, regras de negócio, tratamento centralizado de erros e testes automatizados.
 
 Funcionalidades em destaque:
 

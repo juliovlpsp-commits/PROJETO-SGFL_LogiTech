@@ -32,13 +32,6 @@ public class EntregaController {
 
     public EntregaController(
             ServicoGerenciamento servicoGerenciamento,
-            EntregaRepository entregaRepository
-    ) {
-        this(servicoGerenciamento, entregaRepository, null);
-    }
-
-    public EntregaController(
-            ServicoGerenciamento servicoGerenciamento,
             EntregaRepository entregaRepository,
             com.logitech.sgfl.service.EntregaAuditoriaService auditoriaService
     ) {

@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(indexes = {
@@ -66,6 +67,25 @@ public class Entrega {
         this.enderecoDestino = enderecoDestino;
         this.pesoCargaKg = pesoCargaKg;
         this.status = StatusEntrega.PENDENTE;
+    }
+
+    /**
+     * Garante o código de rastreio único antes de qualquer inserção.
+     *
+     * A coluna é NOT NULL no banco (migration V7) e o código também é usado
+     * pelo portal público em /rastreio/{codigo}. Gerar aqui evita que qualquer
+     * caminho de criação — controller, importação de CSV ou teste — insira uma
+     * entrega sem o código.
+     */
+    @PrePersist
+    private void gerarCodigoRastreioSeAusente() {
+        if (codigoRastreio == null || codigoRastreio.isBlank()) {
+            codigoRastreio = "SGFL-" + UUID.randomUUID()
+                    .toString()
+                    .replace("-", "")
+                    .substring(0, 12)
+                    .toUpperCase();
+        }
     }
 
     public Long getId() { return id; }

@@ -29,14 +29,6 @@ public class SistemaLogistica implements ServicoGerenciamento {
     public SistemaLogistica(
             EntregaRepository entregaRepository,
             VeiculoRepository veiculoRepository,
-            MotoristaRepository motoristaRepository
-    ) {
-        this(entregaRepository, veiculoRepository, motoristaRepository, null);
-    }
-
-    public SistemaLogistica(
-            EntregaRepository entregaRepository,
-            VeiculoRepository veiculoRepository,
             MotoristaRepository motoristaRepository,
             EntregaAuditoriaService auditoriaService
     ) {

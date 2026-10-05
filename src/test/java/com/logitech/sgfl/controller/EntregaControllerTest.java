@@ -45,9 +45,6 @@ class EntregaControllerTest {
     @MockitoBean
     private com.logitech.sgfl.security.JwtService jwtService;
 
-    @MockitoBean
-    private com.logitech.sgfl.service.SistemaLogistica sistemaLogistica;
-
     @Autowired
     private MockMvc mockMvc;
 
@@ -59,6 +56,14 @@ class EntregaControllerTest {
 
     @MockitoBean
     private ServicoGerenciamento servicoGerenciamento;
+
+    /**
+     * A auditoria grava eventos com FK para a entrega no banco H2, mas o
+     * repositório acima é mockado e nenhuma entrega real existe no teste.
+     * Sem este mock, o insert do evento estoura a FK e a API devolve 409.
+     */
+    @MockitoBean
+    private com.logitech.sgfl.service.EntregaAuditoriaService auditoriaService;
 
     @Test
     void devePermitirCriarEntregaComDadosValidos() throws Exception {

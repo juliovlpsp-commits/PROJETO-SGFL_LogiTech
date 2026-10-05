@@ -439,6 +439,7 @@ O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda a cada `p
   - `V5__integridade_dados_e_concorrencia.sql` — normaliza dados, cria as constraints únicas de placa/CPF e os índices contra dupla alocação.
   - `V6__clientes_produtos_estoque_pedidos.sql` — tabelas do módulo comercial.
   - `V7__operacao_avancada.sql` — código de rastreio, janela de agendamento, coordenadas/geocodificação, `valor_frete`, linha do tempo (`entrega_evento`), comprovante e custos.
+  - `V8__latitude_longitude_double_precision.sql` — converte as coordenadas de `NUMERIC(9,6)` para `DOUBLE PRECISION`, alinhando o banco ao mapeamento `Double` das entidades (sem isso o `validate` do Hibernate impede a subida do backend).
 - **Regra**: migrations são só estrutura e dados de referência — nunca dumps nem dados de demonstração novos.
 
 ### 2. Logging estruturado (JSON / correlation ID)
@@ -491,7 +492,7 @@ PROJETO-SGFL_LogiTech/
 │   │   ├── ratelimit/            # Token Bucket (memória e Redis)
 │   │   ├── logging/              # Logs estruturados + correlation ID
 │   │   └── config/               # Bootstrap do admin, paginação
-│   ├── main/resources/db/migration/   # Flyway V1..V7
+│   ├── main/resources/db/migration/   # Flyway V1..V8
 │   └── test/java/                # Suíte JUnit 5 + Testcontainers
 ├── sgfl-frontend/                # React + Vite
 │   ├── src/                      # Telas, hooks e api.js

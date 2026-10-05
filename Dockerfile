@@ -25,6 +25,11 @@ RUN apk add --no-cache curl && addgroup -S spring && adduser -S spring -G spring
 COPY --from=builder /build/target/*.jar app.jar
 RUN chown -R spring:spring /app
 
+# O diretorio de uploads e montado como named volume. Se nao existir na imagem,
+# o Docker o cria como root e o processo (usuario spring) recebe
+# AccessDeniedException em /app/uploads/comprovantes ao iniciar.
+RUN mkdir -p /app/uploads/comprovantes && chown -R spring:spring /app/uploads
+
 USER spring:spring
 
 EXPOSE 8080

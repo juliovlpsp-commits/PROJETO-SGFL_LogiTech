@@ -280,6 +280,18 @@ Nada de senha ou segredo no `application.properties` — tudo via variáveis de 
 | `MANAGEMENT_SERVER_PORT` | Porta de health/métricas (Actuator) | `8081` |
 | `MANAGEMENT_SERVER_ADDRESS` | Endereço da porta de gerenciamento | `127.0.0.1` |
 | `SGFL_ETA_AVG_SPEED_KMH` | Velocidade média usada na estimativa de rota/ETA | `50` |
+| `SGFL_STOCK_MODE` | Baixa de estoque dos pedidos: `IMEDIATA` (padrão) ou `RESERVA` (baixa na conclusão/despacho) | `IMEDIATA` |
+| `SGFL_GEOCODER_URL` | Base do geocodificador (compatível com Nominatim) | `https://nominatim.openstreetmap.org` |
+| `SGFL_GEOCODER_USER_AGENT` | User-Agent enviado ao geocodificador (identificação obrigatória do Nominatim) | `SGFL-LogiTech/1.0` |
+| `SGFL_ROUTER_URL` | Base do roteador externo (compatível com OSRM); vazio/inacessível cai para Haversine | `https://router.project-osrm.org` |
+| `SGFL_MAIL_ENABLED` | Habilita o envio de e-mail em mudanças de status da entrega | `false` |
+| `SGFL_MAIL_HOST` / `SGFL_MAIL_PORT` | Servidor SMTP e porta | vazio / `587` |
+| `SGFL_MAIL_USERNAME` / `SGFL_MAIL_PASSWORD` | Credenciais SMTP (opcional em servidores que aceitam relaying) | vazio |
+| `SGFL_MAIL_FROM` | Remetente das mensagens | `noreply@sgfl.local` |
+| `SGFL_MAIL_TO` | Destinatários separados por vírgula | vazio |
+| `SGFL_MAIL_STARTTLS` | Usa STARTTLS na conexão SMTP | `true` |
+| `SGFL_PUBLIC_URL` | URL pública do painel usada no link de rastreio do e-mail | `http://localhost:5173` |
+| `SGFL_UPLOAD_DIR` | Pasta de armazenamento das fotos de comprovante | `uploads/comprovantes` |
 
 No IntelliJ: **Run/Debug Configurations → Environment Variables**.
 
@@ -533,16 +545,21 @@ PROJETO-SGFL_LogiTech/
 - [x] Estimativa de rota/ETA e janela de agendamento
 - [x] PWA básico (manifest + service worker)
 - [x] CI com testes de backend, frontend e navegador
+- [x] Auditoria transversal de cliente, produto e pedido (além da linha do tempo da entrega)
+- [x] Notificações por e-mail SMTP em mudanças de status da entrega (desligadas por padrão)
+- [x] Geocodificação dos endereços (Nominatim) e rota/ETA com provedor externo (OSRM), com queda para Haversine
+- [x] Mapa da entrega no painel (Leaflet + OpenStreetMap) com geocodificação e histórico de ETA
+- [x] Histórico de ETA por entrega (uma estimativa a cada 5 minutos)
+- [x] Custos detalhados por categoria (combustível, pedágio, manutenção, outro) com total em R$
+- [x] Comprovante pelo painel com câmera (`capture`), assinatura em canvas e observação
+- [x] Fila offline no painel: ações sem conexão são guardadas e reenviadas sozinhas
+- [x] Baixa de estoque no despacho/envio via modo configurável `SGFL_STOCK_MODE` (`IMEDIATA` ou `RESERVA`)
 
 ### Próximos passos
 
-- [ ] Mapa com geocodificação e rota por provedor externo (hoje: estimativa Haversine e velocidade média)
-- [ ] Notificações reais por SMTP e WhatsApp via provedor configurado
-- [ ] Auditoria transversal de cliente, produto e pedido (além da linha do tempo da entrega)
-- [ ] PWA completo para o motorista, com câmera, assinatura e sincronização offline
-- [ ] Custos detalhados por categoria (combustível, pedágio, manutenção)
-- [ ] Baixa de estoque no despacho/envio, caso o negócio passe a reservar no pedido e baixar no envio
-- [ ] ETA com histórico e provedor de trânsito
+- [ ] Notificações por WhatsApp via provedor configurado
+- [ ] Trânsito em tempo real no ETA (hoje: OSRM público sem trânsito + velocidade média configurável)
+- [ ] Desenho da rota real no mapa (hoje: linha reta entre origem e destino — distância e tempo já vêm do provedor)
 
 O histórico detalhado está em [`docs/ROADMAP_IMPLEMENTADO.md`](docs/ROADMAP_IMPLEMENTADO.md).
 

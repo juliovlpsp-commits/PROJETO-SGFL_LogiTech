@@ -15,7 +15,7 @@ RUN mvn clean package -DskipTests
 # ==========================================
 # Estágio 2: Imagem final de execução (JRE leve)
 # ==========================================
-FROM eclipse-temurin:17-jre-alpine AS runner
+FROM eclipse-temurin:25-jre-alpine AS runner
 WORKDIR /app
 
 # Criação de usuário não-root para segurança

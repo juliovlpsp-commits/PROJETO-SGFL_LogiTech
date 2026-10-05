@@ -8,6 +8,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -304,6 +306,54 @@ public class GlobalExceptionHandler {
                                 HttpStatus.BAD_REQUEST,
                                 "Requisição inválida",
                                 "O corpo da requisição está mal formado ou contém um valor inválido."
+                        )
+                );
+    }
+
+    /**
+     * Método HTTP não suportado pela rota (ex.: GET em {@code /api/entregas/{id}},
+     * que só aceita PUT/PATCH/DELETE). Sem este tratamento, o Spring lança a
+     * exceção e o cliente recebia 500 no lugar de 405.
+     */
+    @ExceptionHandler(
+            HttpRequestMethodNotSupportedException.class
+    )
+    public ResponseEntity<Map<String, Object>>
+    handleMetodoNaoSuportado(
+            HttpRequestMethodNotSupportedException ex
+    ) {
+
+        return ResponseEntity
+                .status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(
+                        baseBody(
+                                HttpStatus.METHOD_NOT_ALLOWED,
+                                "Método não suportado",
+                                "O método " + ex.getMethod()
+                                        + " não é suportado para este recurso."
+                        )
+                );
+    }
+
+    /**
+     * Content-Type da requisição não aceito pelo endpoint (ex.: XML num
+     * endpoint JSON): responde 415 em vez do 500 genérico.
+     */
+    @ExceptionHandler(
+            HttpMediaTypeNotSupportedException.class
+    )
+    public ResponseEntity<Map<String, Object>>
+    handleTipoNaoSuportado(
+            HttpMediaTypeNotSupportedException ex
+    ) {
+
+        return ResponseEntity
+                .status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
+                .body(
+                        baseBody(
+                                HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                                "Tipo de conteúdo não suportado",
+                                "Envie o corpo no formato application/json."
                         )
                 );
     }

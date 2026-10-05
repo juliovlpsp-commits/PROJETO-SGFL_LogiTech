@@ -20,7 +20,7 @@ import java.util.Optional;
  * Roteamento por provedor externo, compatível com a API do OSRM.
  *
  * O provedor é plugável por URL: qualquer serviço que responda no formato
- * {@code GET /route/v1/driving/{lon},{lat},{lon},{lat}} funciona (inclui
+ * {@code GET /route/v1/driving/{lon},{lat};{lon},{lat}} funciona (inclui
  * instâncias OSRM próprias e serviços que agreguem trânsito, quando o
  * contrato for o mesmo). Sem chave de API.
  *
@@ -66,9 +66,13 @@ public class RoteamentoService {
             return Optional.empty();
         }
 
+        /*
+         * A API do OSRM separa os pares de coordenadas com ponto e vírgula:
+         * /route/v1/driving/{lon},{lat};{lon},{lat}
+         */
         String url = baseUrl.replaceAll("/+$", "")
                 + "/route/v1/driving/"
-                + longitudeOrigem + "," + latitudeOrigem + ","
+                + longitudeOrigem + "," + latitudeOrigem + ";"
                 + longitudeDestino + "," + latitudeDestino
                 + "?overview=false&alternatives=false&steps=false";
 

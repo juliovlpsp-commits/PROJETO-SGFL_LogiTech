@@ -31,6 +31,14 @@ class RoteamentoServiceTest {
             // 1500,7 s = 25,01 min -> arredonda para cima.
             assertThat(rota.get().duracaoMinutos()).isEqualTo(26);
             assertThat(rota.get().fonte()).isEqualTo("OSRM");
+
+            /*
+             * Regressão: o OSRM separa os pares de coordenadas com ";".
+             * Com "," o provedor responde 404 e o sistema caía no
+             * Haversine mesmo com o provedor no ar.
+             */
+            assertThat(stub.ultimoCaminho())
+                    .contains("-46.63,-23.55;-47.06,-22.9");
         }
     }
 

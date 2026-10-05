@@ -5,6 +5,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Map;
@@ -67,5 +69,27 @@ class GlobalExceptionHandlerTest {
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(resposta.getBody().get("status")).isEqualTo(404);
         assertThat((String) resposta.getBody().get("message")).contains("/api/auth/me");
+    }
+
+    @Test
+    void deveDevolver405QuandoMetodoNaoSuportadoPelaRota() {
+        ResponseEntity<Map<String, Object>> resposta =
+                handler.handleMetodoNaoSuportado(
+                        new HttpRequestMethodNotSupportedException("GET"));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.METHOD_NOT_ALLOWED);
+        assertThat(resposta.getBody().get("status")).isEqualTo(405);
+        assertThat((String) resposta.getBody().get("message")).contains("GET");
+    }
+
+    @Test
+    void deveDevolver415QuandoContentTypeNaoSuportado() {
+        ResponseEntity<Map<String, Object>> resposta =
+                handler.handleTipoNaoSuportado(
+                        new HttpMediaTypeNotSupportedException("application/xml"));
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.UNSUPPORTED_MEDIA_TYPE);
+        assertThat(resposta.getBody().get("status")).isEqualTo(415);
+        assertThat((String) resposta.getBody().get("message")).contains("application/json");
     }
 }

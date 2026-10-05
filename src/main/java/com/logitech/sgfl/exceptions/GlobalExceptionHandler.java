@@ -11,6 +11,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -119,6 +120,30 @@ public class GlobalExceptionHandler {
                                 HttpStatus.NOT_FOUND,
                                 "Recurso não encontrado",
                                 ex.getMessage()
+                        )
+                );
+    }
+
+    /**
+     * Rotas inexistentes em /api/** chegavam aqui como erro interno (500)
+     * porque o Spring devolve NoResourceFoundException. Mantém o contrato
+     * de erro da API com 404.
+     */
+    @ExceptionHandler(
+            NoResourceFoundException.class
+    )
+    public ResponseEntity<Map<String, Object>>
+    handleNoResourceFound(
+            NoResourceFoundException ex
+    ) {
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(
+                        baseBody(
+                                HttpStatus.NOT_FOUND,
+                                "Recurso não encontrado",
+                                "Não existe recurso em " + ex.getResourcePath() + "."
                         )
                 );
     }

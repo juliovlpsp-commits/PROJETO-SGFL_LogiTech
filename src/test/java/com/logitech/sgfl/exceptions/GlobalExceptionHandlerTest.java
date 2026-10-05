@@ -2,8 +2,10 @@ package com.logitech.sgfl.exceptions;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Map;
 
@@ -53,5 +55,17 @@ class GlobalExceptionHandlerTest {
 
         assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat((String) resposta.getBody().get("message")).contains("relacionado a outros dados");
+    }
+
+    @Test
+    void deveDevolver404ParaRotaInexistente() {
+        ResponseEntity<Map<String, Object>> resposta =
+                handler.handleNoResourceFound(
+                        new NoResourceFoundException(HttpMethod.GET, "/api/auth/me")
+                );
+
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(resposta.getBody().get("status")).isEqualTo(404);
+        assertThat((String) resposta.getBody().get("message")).contains("/api/auth/me");
     }
 }

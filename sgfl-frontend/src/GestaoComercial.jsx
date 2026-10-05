@@ -772,6 +772,42 @@ export default function GestaoComercial() {
         }
     };
 
+    const concluirPedido = async (
+        pedido
+    ) => {
+        const confirmou =
+            window.confirm(
+                `Concluir (despachar) o pedido #${pedido.id}?`
+            );
+
+        if (!confirmou) {
+            return;
+        }
+
+        setSalvando(true);
+        setMensagem('');
+
+        try {
+            await api.patch(
+                `/pedidos/${pedido.id}/concluir`
+            );
+
+            mostrarMensagem(
+                'Pedido concluído com sucesso.',
+                'sucesso'
+            );
+
+            await carregarDados();
+        } catch (error) {
+            tratarErro(
+                error,
+                'Não foi possível concluir o pedido.'
+            );
+        } finally {
+            setSalvando(false);
+        }
+    };
+
     const abrir = () => {
         window.clearTimeout(fechamentoTimeoutRef.current);
         fechamentoTimeoutRef.current = null;
@@ -2174,6 +2210,26 @@ export default function GestaoComercial() {
                                                                 theme
                                                             }
                                                         />
+
+                                                        {pedido.status ===
+                                                            'ABERTO' && (
+                                                                <BlurButton
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        concluirPedido(
+                                                                            pedido
+                                                                        )
+                                                                    }
+                                                                    style={
+                                                                        styles.primary
+                                                                    }
+                                                                    disabled={
+                                                                        salvando
+                                                                    }
+                                                                >
+                                                                    Concluir
+                                                                </BlurButton>
+                                                            )}
 
                                                         {pedido.status ===
                                                             'ABERTO' && (

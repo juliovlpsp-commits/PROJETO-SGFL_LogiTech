@@ -36,6 +36,16 @@ public class Estoque {
     )
     private int quantidadeDisponivel;
 
+    /**
+     * Quantidade bloqueada para pedidos abertos no modo RESERVA
+     * (SGFL_STOCK_MODE=RESERVA). No modo IMEDIATA permanece 0.
+     */
+    @Column(
+            name = "quantidade_reservada",
+            nullable = false
+    )
+    private int quantidadeReservada = 0;
+
     @Column(
             name = "atualizado_em",
             nullable = false
@@ -80,6 +90,29 @@ public class Estoque {
             int quantidadeDisponivel
     ) {
         this.quantidadeDisponivel = quantidadeDisponivel;
+        this.atualizadoEm = LocalDateTime.now();
+    }
+
+    public int getQuantidadeReservada() {
+        return quantidadeReservada;
+    }
+
+    /**
+     * Quanto ainda pode sair para novos pedidos: físico menos o que já
+     * está reservado.
+     */
+    public int getQuantidadeEfetivaDisponivel() {
+        return quantidadeDisponivel - quantidadeReservada;
+    }
+
+    public void reservar(int quantidade) {
+        this.quantidadeReservada += quantidade;
+        this.atualizadoEm = LocalDateTime.now();
+    }
+
+    public void liberarReserva(int quantidade) {
+        this.quantidadeReservada =
+                Math.max(0, this.quantidadeReservada - quantidade);
         this.atualizadoEm = LocalDateTime.now();
     }
 

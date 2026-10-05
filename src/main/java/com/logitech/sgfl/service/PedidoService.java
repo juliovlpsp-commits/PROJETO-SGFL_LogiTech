@@ -1,12 +1,14 @@
 package com.logitech.sgfl.service;
 
 import com.logitech.sgfl.dto.PedidoRequest;
+import com.logitech.sgfl.enums.ModoEstoque;
 import com.logitech.sgfl.enums.StatusPedido;
 import com.logitech.sgfl.exceptions.RecursoNaoEncontradoException;
 import com.logitech.sgfl.exceptions.RegraNegocioException;
 import com.logitech.sgfl.me.*;
 import com.logitech.sgfl.repository.*;
 import jakarta.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,17 +24,20 @@ public class PedidoService {
     private final ClienteRepository clienteRepository;
     private final EstoqueRepository estoqueRepository;
     private final AuditoriaTransversalService auditoria;
+    private final ModoEstoque modoEstoque;
 
     public PedidoService(
             PedidoRepository pedidoRepository,
             ClienteRepository clienteRepository,
             EstoqueRepository estoqueRepository,
-            AuditoriaTransversalService auditoria
+            AuditoriaTransversalService auditoria,
+            @Value("${SGFL_STOCK_MODE:IMEDIATA}") String modoEstoque
     ) {
         this.pedidoRepository = pedidoRepository;
         this.clienteRepository = clienteRepository;
         this.estoqueRepository = estoqueRepository;
         this.auditoria = auditoria;
+        this.modoEstoque = ModoEstoque.de(modoEstoque);
     }
 
     @Transactional
@@ -139,11 +144,12 @@ public class PedidoService {
             /*
              * REGRA DE NEGÓCIO PRINCIPAL:
              *
-             * Nunca permitimos estoque negativo.
+             * Nunca permitimos estoque negativo — no modo RESERVA a
+             * conta é física menos o que já está reservado.
              */
             if (
                     quantidadeSolicitada >
-                            estoque.getQuantidadeDisponivel()
+                            estoque.getQuantidadeEfetivaDisponivel()
             ) {
 
                 throw new RegraNegocioException(
@@ -151,7 +157,7 @@ public class PedidoService {
                                 produto.getNome() +
                                 "'. " +
                                 "Disponível: " +
-                                estoque.getQuantidadeDisponivel() +
+                                estoque.getQuantidadeEfetivaDisponivel() +
                                 ". Solicitado: " +
                                 quantidadeSolicitada +
                                 "."
@@ -167,7 +173,8 @@ public class PedidoService {
         /*
          * Todas as validações passaram.
          *
-         * Só agora o estoque é baixado.
+         * Só agora o estoque é afetado: baixa física no modo IMEDIATA,
+         * reserva (bloqueio) no modo RESERVA.
          */
         for (Map.Entry<Long, Integer> entry :
                 quantidades.entrySet()) {
@@ -177,11 +184,15 @@ public class PedidoService {
                             entry.getKey()
                     );
 
-            estoque.setQuantidadeDisponivel(
-                    estoque.getQuantidadeDisponivel()
-                            -
-                            entry.getValue()
-            );
+            if (modoEstoque == ModoEstoque.RESERVA) {
+                estoque.reservar(entry.getValue());
+            } else {
+                estoque.setQuantidadeDisponivel(
+                        estoque.getQuantidadeDisponivel()
+                                -
+                                entry.getValue()
+                );
+            }
 
             estoqueRepository.save(
                     estoque
@@ -295,8 +306,8 @@ public class PedidoService {
         }
 
         /*
-         * Ao cancelar, devolvemos as quantidades
-         * ao estoque.
+         * Ao cancelar, as quantidades voltam: no modo RESERVA a reserva
+         * é liberada; no modo IMEDIATA o estoque físico recebe de volta.
          */
         for (
                 ItemPedido item :
@@ -319,27 +330,36 @@ public class PedidoService {
                                     )
                             );
 
-            long novoEstoque =
-                    (long)
-                            estoque.getQuantidadeDisponivel()
-                            +
-                            item.getQuantidade();
+            if (modoEstoque == ModoEstoque.RESERVA) {
 
-            if (
-                    novoEstoque >
-                            Integer.MAX_VALUE
-            ) {
+                estoque.liberarReserva(
+                        item.getQuantidade()
+                );
 
-                throw new RegraNegocioException(
-                        "Não foi possível devolver o estoque do produto '" +
-                                item.getProduto().getNome() +
-                                "' porque a quantidade excederia o limite."
+            } else {
+
+                long novoEstoque =
+                        (long)
+                                estoque.getQuantidadeDisponivel()
+                                +
+                                item.getQuantidade();
+
+                if (
+                        novoEstoque >
+                                Integer.MAX_VALUE
+                ) {
+
+                    throw new RegraNegocioException(
+                            "Não foi possível devolver o estoque do produto '" +
+                                    item.getProduto().getNome() +
+                                    "' porque a quantidade excederia o limite."
+                    );
+                }
+
+                estoque.setQuantidadeDisponivel(
+                        (int) novoEstoque
                 );
             }
-
-            estoque.setQuantidadeDisponivel(
-                    (int) novoEstoque
-            );
 
             estoqueRepository.save(
                     estoque
@@ -359,7 +379,118 @@ public class PedidoService {
                     "PEDIDO",
                     salvo.getId(),
                     "CANCELADO",
-                    "Pedido " + salvo.getId() + " cancelado; estoque devolvido.",
+                    "Pedido " + salvo.getId() + " cancelado; quantidades liberadas do estoque.",
+                    antes,
+                    salvo
+            );
+        }
+
+        return salvo;
+    }
+
+    /**
+     * Conclui o pedido (despacho/envio).
+     *
+     * No modo RESERVA é aqui que a baixa física do estoque acontece:
+     * a reserva é encerrada e as quantidades saem do disponível. No
+     * modo IMEDIATA a baixa já ocorreu na criação — só encerramos a
+     * reserva residual e mudamos o status.
+     */
+    @Transactional
+    public Pedido concluir(Long id) {
+
+        Pedido pedido =
+                pedidoRepository
+                        .findByIdComItensForUpdate(id)
+                        .orElseThrow(() ->
+                                new RecursoNaoEncontradoException(
+                                        "Pedido não encontrado: " + id
+                                )
+                        );
+
+        Object antes =
+                auditoria == null ? null : auditoria.fotografia(pedido);
+
+        if (
+                pedido.getStatus() !=
+                        StatusPedido.ABERTO
+        ) {
+
+            throw new RegraNegocioException(
+                    "Somente pedidos ABERTOS podem ser concluídos."
+            );
+        }
+
+        for (
+                ItemPedido item :
+                pedido.getItens()
+        ) {
+
+            Long produtoId =
+                    item.getProduto()
+                            .getId();
+
+            Estoque estoque =
+                    estoqueRepository
+                            .findByProdutoIdForUpdate(
+                                    produtoId
+                            )
+                            .orElseThrow(() ->
+                                    new RecursoNaoEncontradoException(
+                                            "Estoque não encontrado para o produto: " +
+                                                    produtoId
+                                    )
+                            );
+
+            /*
+             * Nos dois modos a reserva termina aqui.
+             */
+            estoque.liberarReserva(
+                    item.getQuantidade()
+            );
+
+            if (modoEstoque == ModoEstoque.RESERVA) {
+
+                long novoEstoque =
+                        (long)
+                                estoque.getQuantidadeDisponivel()
+                                -
+                                item.getQuantidade();
+
+                if (novoEstoque < 0) {
+
+                    throw new RegraNegocioException(
+                            "Não foi possível concluir o pedido porque o estoque do produto '" +
+                                    item.getProduto().getNome() +
+                                    "' está inconsistente (reserva maior que o disponível)."
+                    );
+                }
+
+                estoque.setQuantidadeDisponivel(
+                        (int) novoEstoque
+                );
+            }
+
+            estoqueRepository.save(
+                    estoque
+            );
+        }
+
+        pedido.setStatus(
+                StatusPedido.CONCLUIDO
+        );
+
+        Pedido salvo = pedidoRepository.save(
+                pedido
+        );
+
+        if (auditoria != null) {
+            auditoria.registrar(
+                    "PEDIDO",
+                    salvo.getId(),
+                    "CONCLUIDO",
+                    "Pedido " + salvo.getId() +
+                            " concluído; modo de estoque: " + modoEstoque + ".",
                     antes,
                     salvo
             );

@@ -101,6 +101,9 @@ services:
       SGFL_MAIL_STARTTLS: ${SGFL_MAIL_STARTTLS:-true}
       SGFL_PUBLIC_URL: ${SGFL_PUBLIC_URL:-http://localhost:5173}
 
+      # Modo de baixa de estoque dos pedidos: IMEDIATA (padrão) ou RESERVA
+      SGFL_STOCK_MODE: ${SGFL_STOCK_MODE:-IMEDIATA}
+
     volumes:
       - sgfl_uploads:/app/uploads
 

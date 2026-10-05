@@ -65,4 +65,19 @@ public class PedidoController {
                 PedidoResponse.from(pedidoService.cancelar(id))
         );
     }
+
+    /**
+     * Conclui o pedido (despacho/envio). No modo RESERVA
+     * (SGFL_STOCK_MODE=RESERVA) é este ponto que dá baixa física no
+     * estoque.
+     */
+    @PatchMapping("/{id}/concluir")
+    public ResponseEntity<PedidoResponse> concluir(
+            @PathVariable Long id
+    ) {
+
+        return ResponseEntity.ok(
+                PedidoResponse.from(pedidoService.concluir(id))
+        );
+    }
 }

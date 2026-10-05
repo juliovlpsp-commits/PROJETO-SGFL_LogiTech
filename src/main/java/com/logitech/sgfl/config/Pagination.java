@@ -11,7 +11,10 @@ public final class Pagination {
     private Pagination() {}
 
     public static Pageable request(int page, int size) {
-        return PageRequest.of(Math.max(0, page), Math.min(Math.max(1, size), MAX_SIZE),
-                Sort.by("id").descending());
+        return request(page, size, Sort.by("id").descending());
+    }
+
+    public static Pageable request(int page, int size, Sort ordenacao) {
+        return PageRequest.of(Math.max(0, page), Math.min(Math.max(1, size), MAX_SIZE), ordenacao);
     }
 }

@@ -21,15 +21,18 @@ public class PedidoService {
     private final PedidoRepository pedidoRepository;
     private final ClienteRepository clienteRepository;
     private final EstoqueRepository estoqueRepository;
+    private final AuditoriaTransversalService auditoria;
 
     public PedidoService(
             PedidoRepository pedidoRepository,
             ClienteRepository clienteRepository,
-            EstoqueRepository estoqueRepository
+            EstoqueRepository estoqueRepository,
+            AuditoriaTransversalService auditoria
     ) {
         this.pedidoRepository = pedidoRepository;
         this.clienteRepository = clienteRepository;
         this.estoqueRepository = estoqueRepository;
+        this.auditoria = auditoria;
     }
 
     @Transactional
@@ -217,9 +220,23 @@ public class PedidoService {
             pedido.adicionarItem(item);
         }
 
-        return pedidoRepository.save(
+        Pedido salvo = pedidoRepository.save(
                 pedido
         );
+
+        if (auditoria != null) {
+            auditoria.registrar(
+                    "PEDIDO",
+                    salvo.getId(),
+                    "CRIADO",
+                    "Pedido " + salvo.getId() + " criado para " +
+                            cliente.getNome() + ".",
+                    null,
+                    salvo
+            );
+        }
+
+        return salvo;
     }
 
     @Transactional
@@ -263,6 +280,9 @@ public class PedidoService {
                                         "Pedido não encontrado: " + id
                                 )
                         );
+
+        Object antes =
+                auditoria == null ? null : auditoria.fotografia(pedido);
 
         if (
                 pedido.getStatus() !=
@@ -330,8 +350,21 @@ public class PedidoService {
                 StatusPedido.CANCELADO
         );
 
-        return pedidoRepository.save(
+        Pedido salvo = pedidoRepository.save(
                 pedido
         );
+
+        if (auditoria != null) {
+            auditoria.registrar(
+                    "PEDIDO",
+                    salvo.getId(),
+                    "CANCELADO",
+                    "Pedido " + salvo.getId() + " cancelado; estoque devolvido.",
+                    antes,
+                    salvo
+            );
+        }
+
+        return salvo;
     }
 }

@@ -146,6 +146,14 @@ public class SecurityConfig {
                         )
 
                         /*
+                         * Auditoria transversal: ADMIN.
+                         */
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/auditoria/**"
+                        ).hasRole("ADMIN")
+
+                        /*
                          * Listagens, pedidos e fluxo de entregas:
                          * usuário autenticado.
                          */

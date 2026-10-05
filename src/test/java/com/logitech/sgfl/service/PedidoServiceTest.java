@@ -22,6 +22,9 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,6 +38,9 @@ class PedidoServiceTest {
 
     @Mock
     private EstoqueRepository estoqueRepository;
+
+    @Mock
+    private AuditoriaTransversalService auditoria;
 
     @InjectMocks
     private PedidoService pedidoService;
@@ -113,6 +119,15 @@ class PedidoServiceTest {
         verify(
                 pedidoRepository
         ).save(any(Pedido.class));
+
+        verify(auditoria).registrar(
+                eq("PEDIDO"),
+                any(),
+                eq("CRIADO"),
+                anyString(),
+                isNull(),
+                any(Pedido.class)
+        );
     }
 
     @Test
@@ -341,6 +356,15 @@ class PedidoServiceTest {
         assertEquals(
                 8,
                 estoque.getQuantidadeDisponivel()
+        );
+
+        verify(auditoria).registrar(
+                eq("PEDIDO"),
+                any(),
+                eq("CANCELADO"),
+                anyString(),
+                any(),
+                any(Pedido.class)
         );
     }
 }

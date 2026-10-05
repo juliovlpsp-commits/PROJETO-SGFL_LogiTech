@@ -17,13 +17,16 @@ public class ClienteService {
 
     private final ClienteRepository clienteRepository;
     private final PedidoRepository pedidoRepository;
+    private final AuditoriaTransversalService auditoria;
 
     public ClienteService(
             ClienteRepository clienteRepository,
-            PedidoRepository pedidoRepository
+            PedidoRepository pedidoRepository,
+            AuditoriaTransversalService auditoria
     ) {
         this.clienteRepository = clienteRepository;
         this.pedidoRepository = pedidoRepository;
+        this.auditoria = auditoria;
     }
 
     @Transactional
@@ -84,7 +87,20 @@ public class ClienteService {
                 uf
         );
 
-        return clienteRepository.save(cliente);
+        Cliente salvo = clienteRepository.save(cliente);
+
+        if (auditoria != null) {
+            auditoria.registrar(
+                    "CLIENTE",
+                    salvo.getId(),
+                    "CRIADO",
+                    "Cliente " + salvo.getNome() + " cadastrado.",
+                    null,
+                    salvo
+            );
+        }
+
+        return salvo;
     }
 
     @Transactional
@@ -106,6 +122,9 @@ public class ClienteService {
 
         Cliente cliente =
                 buscar(id);
+
+        Object antes =
+                auditoria == null ? null : auditoria.fotografia(cliente);
 
         String cpfNormalizado =
                 normalizarCpf(cpf);
@@ -150,7 +169,20 @@ public class ClienteService {
                 uf
         );
 
-        return clienteRepository.save(cliente);
+        Cliente salvo = clienteRepository.save(cliente);
+
+        if (auditoria != null) {
+            auditoria.registrar(
+                    "CLIENTE",
+                    salvo.getId(),
+                    "ATUALIZADO",
+                    "Cliente " + salvo.getNome() + " alterado.",
+                    antes,
+                    salvo
+            );
+        }
+
+        return salvo;
     }
 
     @Transactional
@@ -163,6 +195,17 @@ public class ClienteService {
             throw new RegraNegocioException(
                     "Não é possível excluir o cliente porque ele possui pedidos cadastrados. " +
                             "Desative o cliente em vez de apagar seu histórico."
+            );
+        }
+
+        if (auditoria != null) {
+            auditoria.registrar(
+                    "CLIENTE",
+                    id,
+                    "EXCLUIDO",
+                    "Cliente " + cliente.getNome() + " excluído.",
+                    cliente,
+                    null
             );
         }
 

@@ -21,15 +21,18 @@ public class ProdutoService {
     private final ProdutoRepository produtoRepository;
     private final EstoqueRepository estoqueRepository;
     private final ItemPedidoRepository itemPedidoRepository;
+    private final AuditoriaTransversalService auditoria;
 
     public ProdutoService(
             ProdutoRepository produtoRepository,
             EstoqueRepository estoqueRepository,
-            ItemPedidoRepository itemPedidoRepository
+            ItemPedidoRepository itemPedidoRepository,
+            AuditoriaTransversalService auditoria
     ) {
         this.produtoRepository = produtoRepository;
         this.estoqueRepository = estoqueRepository;
         this.itemPedidoRepository = itemPedidoRepository;
+        this.auditoria = auditoria;
     }
 
     @Transactional
@@ -76,6 +79,17 @@ public class ProdutoService {
 
         salvo.setEstoque(estoque);
 
+        if (auditoria != null) {
+            auditoria.registrar(
+                    "PRODUTO",
+                    salvo.getId(),
+                    "CRIADO",
+                    "Produto " + salvo.getCodigo() + " cadastrado.",
+                    null,
+                    salvo
+            );
+        }
+
         return salvo;
     }
 
@@ -91,6 +105,9 @@ public class ProdutoService {
 
         Produto produto =
                 buscar(id);
+
+        Object antes =
+                auditoria == null ? null : auditoria.fotografia(produto);
 
         String codigoNormalizado =
                 codigo.trim().toUpperCase();
@@ -126,9 +143,22 @@ public class ProdutoService {
                 ativo
         );
 
-        return produtoRepository.save(
+        Produto salvo = produtoRepository.save(
                 produto
         );
+
+        if (auditoria != null) {
+            auditoria.registrar(
+                    "PRODUTO",
+                    salvo.getId(),
+                    "ATUALIZADO",
+                    "Produto " + salvo.getCodigo() + " alterado.",
+                    antes,
+                    salvo
+            );
+        }
+
+        return salvo;
     }
 
     @Transactional
@@ -158,6 +188,9 @@ public class ProdutoService {
                                 )
                         );
 
+        Object antes =
+                auditoria == null ? null : auditoria.fotografia(estoque);
+
         estoque.setQuantidadeDisponivel(
                 quantidade
         );
@@ -165,6 +198,17 @@ public class ProdutoService {
         estoqueRepository.save(estoque);
 
         produto.setEstoque(estoque);
+
+        if (auditoria != null) {
+            auditoria.registrar(
+                    "PRODUTO",
+                    produtoId,
+                    "ATUALIZADO",
+                    "Estoque do produto " + produto.getCodigo() + " ajustado para " + quantidade + ".",
+                    antes,
+                    estoque
+            );
+        }
 
         return produto;
     }
@@ -181,6 +225,17 @@ public class ProdutoService {
             throw new RegraNegocioException(
                     "Não é possível excluir o produto porque ele aparece em pedidos. " +
                             "Desative o produto em vez de apagar seu histórico."
+            );
+        }
+
+        if (auditoria != null) {
+            auditoria.registrar(
+                    "PRODUTO",
+                    id,
+                    "EXCLUIDO",
+                    "Produto " + produto.getCodigo() + " excluído.",
+                    produto,
+                    null
             );
         }
 

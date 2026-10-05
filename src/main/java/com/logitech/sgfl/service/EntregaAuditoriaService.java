@@ -15,23 +15,49 @@ import java.util.List;
 @Service
 public class EntregaAuditoriaService {
     private final EntregaEventoRepository repository;
+    private final NotificacaoEmailService notificacao;
 
-    public EntregaAuditoriaService(EntregaEventoRepository repository) {
+    public EntregaAuditoriaService(
+            EntregaEventoRepository repository,
+            NotificacaoEmailService notificacao
+    ) {
         this.repository = repository;
+        this.notificacao = notificacao;
     }
 
     @Transactional
     public void registrar(Entrega entrega, String tipo, StatusEntrega anterior,
                           StatusEntrega novo, String observacao) {
+
+        String responsavel = responsavelAtual();
+
         repository.save(new EntregaEvento(
                 entrega,
                 tipo,
                 anterior,
                 novo,
                 LocalDateTime.now(),
-                responsavelAtual(),
+                responsavel,
                 observacao
         ));
+
+        /*
+         * Avisa por e-mail só quando o status realmente mudou:
+         * CRIADA (anterior nulo) e COMPROVANTE_ANEXADO (mesmo status)
+         * não geram aviso.
+         */
+        if (notificacao != null
+                && anterior != null
+                && novo != null
+                && anterior != novo) {
+
+            notificacao.notificarMudancaDeStatus(
+                    entrega,
+                    anterior,
+                    novo,
+                    responsavel
+            );
+        }
     }
 
     @Transactional(readOnly = true)

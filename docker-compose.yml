@@ -90,6 +90,17 @@ services:
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
       SGFL_UPLOAD_DIR: /app/uploads/comprovantes
 
+      # Avisos de status por e-mail (desligados por padrão)
+      SGFL_MAIL_ENABLED: ${SGFL_MAIL_ENABLED:-false}
+      SGFL_MAIL_HOST: ${SGFL_MAIL_HOST:-}
+      SGFL_MAIL_PORT: ${SGFL_MAIL_PORT:-587}
+      SGFL_MAIL_USERNAME: ${SGFL_MAIL_USERNAME:-}
+      SGFL_MAIL_PASSWORD: ${SGFL_MAIL_PASSWORD:-}
+      SGFL_MAIL_FROM: ${SGFL_MAIL_FROM:-noreply@sgfl.local}
+      SGFL_MAIL_TO: ${SGFL_MAIL_TO:-}
+      SGFL_MAIL_STARTTLS: ${SGFL_MAIL_STARTTLS:-true}
+      SGFL_PUBLIC_URL: ${SGFL_PUBLIC_URL:-http://localhost:5173}
+
     volumes:
       - sgfl_uploads:/app/uploads
 

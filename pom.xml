@@ -63,6 +63,17 @@
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
+        <!--
+            SMTP para avisos de mudança de status de entrega.
+            O envio só acontece quando SGFL_MAIL_ENABLED=true e SGFL_MAIL_HOST
+            estão definidos; sem isso a aplicação sobe normalmente e apenas
+            registra em log que os avisos estão desativados.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>

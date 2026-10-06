@@ -25,6 +25,9 @@ class EntregaAuditoriaServiceTest {
     @Mock
     private NotificacaoEmailService notificacao;
 
+    @Mock
+    private NotificacaoWhatsappService whatsapp;
+
     @InjectMocks
     private EntregaAuditoriaService service;
 
@@ -59,6 +62,13 @@ class EntregaAuditoriaServiceTest {
                 eq(StatusEntrega.EM_TRANSITO),
                 anyString()
         );
+
+        verify(whatsapp).notificarMudancaDeStatus(
+                eq(entrega),
+                eq(StatusEntrega.PENDENTE),
+                eq(StatusEntrega.EM_TRANSITO),
+                anyString()
+        );
     }
 
     @Test
@@ -80,6 +90,13 @@ class EntregaAuditoriaServiceTest {
                 any(),
                 anyString()
         );
+
+        verify(whatsapp, never()).notificarMudancaDeStatus(
+                any(),
+                any(),
+                any(),
+                anyString()
+        );
     }
 
     @Test
@@ -96,6 +113,13 @@ class EntregaAuditoriaServiceTest {
         verify(repository).save(any(EntregaEvento.class));
 
         verify(notificacao, never()).notificarMudancaDeStatus(
+                any(),
+                any(),
+                any(),
+                anyString()
+        );
+
+        verify(whatsapp, never()).notificarMudancaDeStatus(
                 any(),
                 any(),
                 any(),

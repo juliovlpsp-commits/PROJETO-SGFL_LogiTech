@@ -21,6 +21,7 @@ import {
 import { formatarPeso } from './deliveryFormatting';
 import AssinaturaCanvas from './AssinaturaCanvas';
 import MapaEntrega from './MapaEntrega';
+import GestaoComercial from './GestaoComercial';
 import { enfileirar, lerFila, reenviarFila } from './offlineQueue';
 
 export default function Dashboard({ onLogout }) {
@@ -97,54 +98,11 @@ export default function Dashboard({ onLogout }) {
     const {
         theme: baseTheme,
         mode,
-        toggle
+        toggle,
+        variante
     } = useTheme();
 
-    const theme = mode === 'dark'
-        ? {
-            ...baseTheme,
-            bg: '#14080C',
-            surface: 'rgba(30, 13, 20, 0.84)',
-            surfaceAlt: 'rgba(39, 18, 27, 0.76)',
-            border: 'rgba(244, 233, 236, 0.13)',
-            borderStrong: 'rgba(165, 69, 82, 0.48)',
-            ink: '#F4E9EC',
-            inkSoft: '#B79AA3',
-            accent: '#A54552',
-            accentInk: '#FFF1F4',
-            danger: '#D86A78',
-            backgroundImage:
-                'radial-gradient(circle at 12% 8%, rgba(165, 69, 82, 0.16), transparent 27%),' +
-                'radial-gradient(circle at 88% 22%, rgba(244, 233, 236, 0.045), transparent 25%),' +
-                'radial-gradient(circle, rgba(244, 233, 236, 0.035) 0.7px, transparent 0.8px),' +
-                'linear-gradient(135deg, #14080C 0%, #1B0A11 48%, #0E0508 100%)',
-            backgroundSize:
-                'auto, auto, 8px 8px, auto',
-            statuses: {
-                ...baseTheme.statuses,
-                PENDENTE: {
-                    bg: 'rgba(165, 69, 82, 0.12)',
-                    ink: '#D99AA3',
-                    dot: '#A54552'
-                },
-                EM_TRANSITO: {
-                    bg: 'rgba(194, 128, 57, 0.16)',
-                    ink: '#E6BD7B',
-                    dot: '#D6A04B'
-                },
-                ENTREGUE: {
-                    bg: 'rgba(79, 122, 88, 0.16)',
-                    ink: '#9FC4A6',
-                    dot: '#5D9466'
-                },
-                CANCELADA: {
-                    bg: 'rgba(142, 120, 128, 0.14)',
-                    ink: '#C9B3BA',
-                    dot: '#8E7880'
-                }
-            }
-        }
-        : baseTheme;
+    const theme = baseTheme;
 
     const styles = getStyles(theme);
 
@@ -1617,9 +1575,9 @@ export default function Dashboard({ onLogout }) {
                         style={{
                             marginBottom: '16px',
                             padding: '14px',
-                            border: `1px solid ${theme.borderStrong}`,
+                            border: '1px solid rgba(165, 69, 82, 0.22)',
                             borderRadius: '16px',
-                            backgroundColor: 'rgba(165,69,82,0.07)',
+                            backgroundColor: 'rgba(165, 69, 82, 0.08)',
                             backdropFilter: 'blur(14px)',
                             WebkitBackdropFilter: 'blur(14px)'
                         }}
@@ -2583,7 +2541,21 @@ export default function Dashboard({ onLogout }) {
 
             {entregaMapa && (
                 <div style={styles.modalOverlay}>
-                    <div style={{ ...styles.modal, maxWidth: '760px' }}>
+                    <div
+                        style={{
+                            ...styles.modal,
+                            maxWidth: '760px',
+                            /*
+                             * Altura máxima da viewport: o conteúdo
+                             * rola por dentro e cabeçalho + botões
+                             * continuam visíveis.
+                             */
+                            maxHeight: 'calc(100vh - 40px)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            overflow: 'hidden'
+                        }}
+                    >
                         <div style={styles.modalHeader}>
                             <div>
                                 <h3 style={styles.modalTitle}>
@@ -2603,61 +2575,73 @@ export default function Dashboard({ onLogout }) {
                             </button>
                         </div>
 
-                        <MapaEntrega
-                            coordenadas={coordenadasMapa}
-                            rota={rotaMapa}
-                            tema={theme}
-                        />
+                        <div
+                            style={{
+                                flex: '1 1 auto',
+                                minHeight: 0,
+                                overflowY: 'auto',
+                                display: 'flex',
+                                flexDirection: 'column'
+                            }}
+                        >
+                            <MapaEntrega
+                                coordenadas={coordenadasMapa}
+                                rota={rotaMapa}
+                                tema={theme}
+                                escuro={mode === 'dark'}
+                                variante={variante}
+                            />
 
-                        {mensagemMapa && (
-                            <div
-                                style={{
-                                    fontSize: '11px',
-                                    color: theme.inkSoft,
-                                    marginTop: '10px'
-                                }}
-                            >
-                                {mensagemMapa}
-                            </div>
-                        )}
-
-                        {etaHistorico.length > 0 && (
-                            <div style={{ marginTop: '12px' }}>
-                                <div style={{ ...styles.label, marginBottom: '6px' }}>
-                                    Histórico de previsões (ETA)
+                            {mensagemMapa && (
+                                <div
+                                    style={{
+                                        fontSize: '11px',
+                                        color: theme.inkSoft,
+                                        marginTop: '10px'
+                                    }}
+                                >
+                                    {mensagemMapa}
                                 </div>
-                                <div style={{ display: 'grid', gap: '6px' }}>
-                                    {etaHistorico.slice(0, 5).map((eta) => (
-                                        <div
-                                            key={eta.id}
-                                            style={{
-                                                display: 'flex',
-                                                justifyContent: 'space-between',
-                                                gap: '10px',
-                                                fontSize: '10px',
-                                                color: theme.inkSoft
-                                            }}
-                                        >
-                                            <span>
-                                                {eta.distanciaKm} km · {eta.duracaoMinutos} min ·{' '}
-                                                {eta.fonte}
-                                                {eta.previsaoChegada &&
-                                                    ` · chegada ${new Date(
-                                                        eta.previsaoChegada
-                                                    ).toLocaleString('pt-BR')}`}
-                                            </span>
-                                            <span>
-                                                {eta.criadoEm
-                                                    ? new Date(eta.criadoEm).toLocaleString('pt-BR')
-                                                    : ''}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                            )}
 
-                        <div style={styles.modalActions}>
+                            {etaHistorico.length > 0 && (
+                                <div style={{ marginTop: '12px' }}>
+                                    <div style={{ ...styles.label, marginBottom: '6px' }}>
+                                        Histórico de previsões (ETA)
+                                    </div>
+                                    <div style={{ display: 'grid', gap: '6px' }}>
+                                        {etaHistorico.slice(0, 5).map((eta) => (
+                                            <div
+                                                key={eta.id}
+                                                style={{
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    gap: '10px',
+                                                    fontSize: '10px',
+                                                    color: theme.inkSoft
+                                                }}
+                                            >
+                                                <span>
+                                                    {eta.distanciaKm} km · {eta.duracaoMinutos} min ·{' '}
+                                                    {eta.fonte}
+                                                    {eta.previsaoChegada &&
+                                                        ` · chegada ${new Date(
+                                                            eta.previsaoChegada
+                                                        ).toLocaleString('pt-BR')}`}
+                                                </span>
+                                                <span>
+                                                    {eta.criadoEm
+                                                        ? new Date(eta.criadoEm).toLocaleString('pt-BR')
+                                                        : ''}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div style={{ ...styles.modalActions, flexShrink: 0 }}>
                             <button
                                 type="button"
                                 onClick={() => setEntregaMapa(null)}
@@ -2982,7 +2966,7 @@ export default function Dashboard({ onLogout }) {
                         height: 390px;
                         top: -120px;
                         left: -100px;
-                        background: radial-gradient(circle, rgba(165, 69, 82, 0.34) 0%, rgba(165, 69, 82, 0) 72%);
+                        background: radial-gradient(circle, rgba(${theme.accentRgb}, 0.34) 0%, rgba(${theme.accentRgb}, 0) 72%);
                     }
 
                     .sgfl-page-dark .sgfl-ambient-b {
@@ -2990,7 +2974,7 @@ export default function Dashboard({ onLogout }) {
                         height: 420px;
                         top: 25%;
                         right: -175px;
-                        background: radial-gradient(circle, rgba(188, 140, 129, 0.14) 0%, rgba(188, 140, 129, 0) 72%);
+                        background: radial-gradient(circle, rgba(${theme.ambientRgb}, 0.14) 0%, rgba(${theme.ambientRgb}, 0) 72%);
                     }
 
                     .sgfl-page-dark .sgfl-ambient-c {
@@ -2998,7 +2982,7 @@ export default function Dashboard({ onLogout }) {
                         height: 360px;
                         bottom: -145px;
                         right: 20%;
-                        background: radial-gradient(circle, rgba(165, 69, 82, 0.18) 0%, rgba(165, 69, 82, 0) 74%);
+                        background: radial-gradient(circle, rgba(${theme.accentRgb}, 0.18) 0%, rgba(${theme.accentRgb}, 0) 74%);
                     }
 
                     .sgfl-page-dark .sgfl-grid-overlay {
@@ -3008,9 +2992,9 @@ export default function Dashboard({ onLogout }) {
                         pointer-events: none;
                         opacity: 0.76;
                         background-image:
-                            radial-gradient(circle, rgba(244,233,236,0.055) 0.7px, transparent 0.8px),
-                            linear-gradient(rgba(244,233,236,0.016) 1px, transparent 1px),
-                            linear-gradient(90deg, rgba(244,233,236,0.016) 1px, transparent 1px);
+                            radial-gradient(circle, rgba(${theme.inkRgb},0.055) 0.7px, transparent 0.8px),
+                            linear-gradient(rgba(${theme.inkRgb},0.016) 1px, transparent 1px),
+                            linear-gradient(90deg, rgba(${theme.inkRgb},0.016) 1px, transparent 1px);
                         background-size: 8px 8px, 54px 54px, 54px 54px;
                         mask-image: linear-gradient(to bottom, rgba(0,0,0,0.72), transparent 92%);
                         -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.72), transparent 92%);
@@ -3132,7 +3116,7 @@ export default function Dashboard({ onLogout }) {
                         transform: translateY(-1px);
                         filter: brightness(1.06);
                         box-shadow:
-                            0 12px 34px rgba(85, 26, 36, 0.20),
+                            0 12px 34px rgba(${theme.hoverRgb}, 0.20),
                             inset 0 1px 0 rgba(255,255,255,0.10);
                     }
 
@@ -3150,7 +3134,7 @@ export default function Dashboard({ onLogout }) {
                         background-image:
                             linear-gradient(
                                 135deg,
-                                rgba(60, 22, 34, 0.34),
+                                rgba(${theme.selectRgb}, 0.34),
                                 rgba(17, 11, 10, 0.16)
                             );
                         backdrop-filter: blur(18px) saturate(115%);
@@ -3162,8 +3146,8 @@ export default function Dashboard({ onLogout }) {
                         background-image:
                             linear-gradient(
                                 135deg,
-                                rgba(165,69,82,0.15),
-                                rgba(244,233,236,0.03)
+                                rgba(${theme.accentRgb},0.15),
+                                rgba(${theme.inkRgb},0.03)
                             );
                         backdrop-filter: blur(22px) saturate(120%);
                         -webkit-backdrop-filter: blur(22px) saturate(120%);
@@ -3173,7 +3157,7 @@ export default function Dashboard({ onLogout }) {
                     }
 
                     .sgfl-page-dark .sgfl-blur-btn:hover {
-                        border-color: rgba(165,69,82,0.56) !important;
+                        border-color: rgba(${theme.accentRgb},0.56) !important;
                     }
 
                     .sgfl-table-wrap {
@@ -3224,6 +3208,14 @@ export default function Dashboard({ onLogout }) {
                     }
                 `}
             </style>
+
+            {/*
+             * O launcher "Clientes e produtos" precisa viver DENTRO de
+             * .sgfl-page (isolation: isolate): fora daqui, o z-index do
+             * seu botão flutuante fica numa pilha acima dos modais do
+             * dashboard e cobria os botões de ação.
+             */}
+            <GestaoComercial />
 
         </div>
     );

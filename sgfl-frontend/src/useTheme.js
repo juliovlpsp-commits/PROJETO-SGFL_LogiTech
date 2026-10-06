@@ -1,11 +1,16 @@
-// Tema único do SGFL. O modo continua exposto para compatibilidade,
-// mas a aplicação não alterna para uma paleta clara diferente.
+// Tema unico do SGFL: vinho. Mantido como hook para compatibilidade
+// com Dashboard/Login/RastreioPublico/MapaEntrega que importam useTheme.
 import { useEffect } from 'react';
 import { darkTheme } from './theme';
 
+const TEMA = darkTheme;
+const MODE = 'dark';
+
 export function useTheme() {
-    const mode = 'dark';
-    const theme = darkTheme;
+    const theme = TEMA;
+    const mode = MODE;
+    const variante = 'vinho';
+    const toggle = () => {};
 
     useEffect(() => {
         const root = document.documentElement;
@@ -20,13 +25,8 @@ export function useTheme() {
         root.style.setProperty('--accent-ink', theme.accentInk);
         root.style.backgroundColor = theme.bg;
         root.style.colorScheme = 'dark';
-        document
-            .querySelector('meta[name="theme-color"]')
-            ?.setAttribute('content', theme.bg);
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme.bg);
     }, [theme]);
 
-    // Mantido para não quebrar os componentes existentes; o tema continua vinho.
-    const toggle = () => {};
-
-    return { theme, mode, toggle };
+    return { theme, mode, toggle, variante };
 }

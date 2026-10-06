@@ -95,6 +95,10 @@ class RotaServiceTest {
         assertThat(resposta.duracaoMinutos()).isBetween(98, 104);
         assertThat(resposta.previsaoChegada()).isNotNull();
 
+        // O fallback de linha reta também devolve a forma para o mapa.
+        assertThat(resposta.geometria()).hasSize(2);
+        assertThat(resposta.geometria().get(0).latitude()).isEqualTo(-23.55052);
+
         verify(etaRepository).save(any(EntregaEta.class));
     }
 
@@ -112,7 +116,16 @@ class RotaServiceTest {
                 org.mockito.ArgumentMatchers.anyDouble()
         ))
                 .thenReturn(Optional.of(
-                        new RotaCalculada(120.5, 90, "OSRM")
+                        new RotaCalculada(
+                                120.5,
+                                90,
+                                "OSRM",
+                                List.of(
+                                        new com.logitech.sgfl.dto.PontoRota(-23.55, -46.63),
+                                        new com.logitech.sgfl.dto.PontoRota(-23.40, -46.50),
+                                        new com.logitech.sgfl.dto.PontoRota(-22.90, -47.06)
+                                )
+                        )
                 ));
         when(etaRepository.findTopByEntregaIdOrderByCriadoEmDesc(7L))
                 .thenReturn(Optional.empty());
@@ -124,6 +137,9 @@ class RotaServiceTest {
         assertThat(resposta.duracaoMinutos()).isEqualTo(90);
         // Velocidade efetiva: 120,5 km em 90 min = 80 km/h.
         assertThat(resposta.velocidadeMediaKmH()).isEqualTo(80);
+        // A geometria do provedor chega intacta na resposta da API.
+        assertThat(resposta.geometria()).hasSize(3);
+        assertThat(resposta.geometria().get(2).latitude()).isEqualTo(-22.90);
 
         verify(etaRepository).save(any(EntregaEta.class));
     }

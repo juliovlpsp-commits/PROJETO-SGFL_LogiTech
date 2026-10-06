@@ -1,6 +1,7 @@
 package com.logitech.sgfl.service;
 
 import com.logitech.sgfl.dto.EntregaEtaResponse;
+import com.logitech.sgfl.dto.PontoRota;
 import com.logitech.sgfl.dto.RotaEstimativaResponse;
 import com.logitech.sgfl.exceptions.RecursoNaoEncontradoException;
 import com.logitech.sgfl.exceptions.RegraNegocioException;
@@ -62,7 +63,7 @@ public class RotaService {
         if (e.getLatitudeOrigem() == null || e.getLongitudeOrigem() == null
                 || e.getLatitudeDestino() == null || e.getLongitudeDestino() == null) {
             return new RotaEstimativaResponse(
-                    entregaId, null, velocidadeMediaKmH, null, null, false, null);
+                    entregaId, null, velocidadeMediaKmH, null, null, false, null, null);
         }
 
         validarCoordenada(e.getLatitudeOrigem(), e.getLongitudeOrigem());
@@ -90,7 +91,8 @@ public class RotaService {
                 duracao,
                 chegada,
                 true,
-                rota.fonte()
+                rota.fonte(),
+                rota.geometria()
         );
     }
 
@@ -118,7 +120,15 @@ public class RotaService {
                                     double latDestino, double lonDestino) {
         double distancia = haversine(latOrigem, lonOrigem, latDestino, lonDestino);
         int duracao = (int) Math.max(1, Math.ceil((distancia / velocidadeMediaKmH) * 60.0));
-        return new RotaCalculada(distancia, duracao, RotaCalculada.FONTE_HAVERSINE);
+        return new RotaCalculada(
+                distancia,
+                duracao,
+                RotaCalculada.FONTE_HAVERSINE,
+                List.of(
+                        new PontoRota(latOrigem, lonOrigem),
+                        new PontoRota(latDestino, lonDestino)
+                )
+        );
     }
 
     private int velocidadeUtilizada(RotaCalculada rota) {

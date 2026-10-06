@@ -57,7 +57,7 @@ O código está separado em `controller`, `service`, `repository`, `me` (entidad
 **Frontend**
 
 - React 19 + Vite 8 + React Router, Axios e ícones Lucide
-- Tema claro/escuro persistido, layout responsivo
+- Tema único vinho escuro com layout responsivo e tokens centralizados em `theme.js`/`useTheme.js`
 - PWA básico: `manifest.webmanifest` e service worker (`sw.js`)
 - Lint com Oxlint, testes com `node --test` e Playwright
 
@@ -284,13 +284,20 @@ Nada de senha ou segredo no `application.properties` — tudo via variáveis de 
 | `SGFL_GEOCODER_URL` | Base do geocodificador (compatível com Nominatim) | `https://nominatim.openstreetmap.org` |
 | `SGFL_GEOCODER_USER_AGENT` | User-Agent enviado ao geocodificador (identificação obrigatória do Nominatim) | `SGFL-LogiTech/1.0` |
 | `SGFL_ROUTER_URL` | Base do roteador externo (compatível com OSRM); vazio/inacessível cai para Haversine | `https://router.project-osrm.org` |
+| `SGFL_ROUTER_PROVIDER` | Provedor de rota: `OSRM` (padrão, sem chave) ou `TOMTOM` (rota com **trânsito em tempo real**) | `OSRM` |
+| `SGFL_ROUTER_API_KEY` | Chave do provedor (obrigatória em `TOMTOM`; gratuita em developer.tomtom.com) | vazio |
 | `SGFL_MAIL_ENABLED` | Habilita o envio de e-mail em mudanças de status da entrega | `false` |
 | `SGFL_MAIL_HOST` / `SGFL_MAIL_PORT` | Servidor SMTP e porta | vazio / `587` |
 | `SGFL_MAIL_USERNAME` / `SGFL_MAIL_PASSWORD` | Credenciais SMTP (opcional em servidores que aceitam relaying) | vazio |
 | `SGFL_MAIL_FROM` | Remetente das mensagens | `noreply@sgfl.local` |
 | `SGFL_MAIL_TO` | Destinatários separados por vírgula | vazio |
 | `SGFL_MAIL_STARTTLS` | Usa STARTTLS na conexão SMTP | `true` |
-| `SGFL_PUBLIC_URL` | URL pública do painel usada no link de rastreio do e-mail | `http://localhost:5173` |
+| `SGFL_WHATSAPP_ENABLED` | Habilita o aviso de mudança de status por WhatsApp | `false` |
+| `SGFL_WHATSAPP_API_URL` | Endpoint HTTP do gateway no contrato JSON `{"to","from","message"}` | vazio |
+| `SGFL_WHATSAPP_TOKEN` | Token enviado como `Authorization: Bearer` (opcional) | vazio |
+| `SGFL_WHATSAPP_FROM` | Identificação do remetente no payload | `SGFL` |
+| `SGFL_WHATSAPP_TO` | Números de destino separados por vírgula (BR: 10–11 dígitos ganham DDI 55) | vazio |
+| `SGFL_PUBLIC_URL` | URL pública do painel usada no link de rastreio dos avisos (e-mail/WhatsApp) | `http://localhost:5173` |
 | `SGFL_UPLOAD_DIR` | Pasta de armazenamento das fotos de comprovante | `uploads/comprovantes` |
 
 No IntelliJ: **Run/Debug Configurations → Environment Variables**.
@@ -554,12 +561,14 @@ PROJETO-SGFL_LogiTech/
 - [x] Comprovante pelo painel com câmera (`capture`), assinatura em canvas e observação
 - [x] Fila offline no painel: ações sem conexão são guardadas e reenviadas sozinhas
 - [x] Baixa de estoque no despacho/envio via modo configurável `SGFL_STOCK_MODE` (`IMEDIATA` ou `RESERVA`)
+- [x] Notificações por WhatsApp via gateway HTTP configurável — mesmo aviso do e-mail, desligadas por padrão
+- [x] ETA com trânsito em tempo real via provedor TomTom opcional (`SGFL_ROUTER_PROVIDER=TOMTOM` + chave gratuita)
+- [x] Rota real desenhada no mapa (geometria do provedor); linha reta tracejada só quando não há rota
 
 ### Próximos passos
 
-- [ ] Notificações por WhatsApp via provedor configurado
-- [ ] Trânsito em tempo real no ETA (hoje: OSRM público sem trânsito + velocidade média configurável)
-- [ ] Desenho da rota real no mapa (hoje: linha reta entre origem e destino — distância e tempo já vêm do provedor)
+- [ ] Modelos de mensagem de WhatsApp editáveis por ambiente (hoje: texto fixo no código)
+- [ ] Reenvio automático de avisos que falharem (hoje: a falha é apenas registrada no log)
 
 O histórico detalhado está em [`docs/ROADMAP_IMPLEMENTADO.md`](docs/ROADMAP_IMPLEMENTADO.md).
 

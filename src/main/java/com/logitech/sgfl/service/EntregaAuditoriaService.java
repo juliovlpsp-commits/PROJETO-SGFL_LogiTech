@@ -16,13 +16,16 @@ import java.util.List;
 public class EntregaAuditoriaService {
     private final EntregaEventoRepository repository;
     private final NotificacaoEmailService notificacao;
+    private final NotificacaoWhatsappService whatsapp;
 
     public EntregaAuditoriaService(
             EntregaEventoRepository repository,
-            NotificacaoEmailService notificacao
+            NotificacaoEmailService notificacao,
+            NotificacaoWhatsappService whatsapp
     ) {
         this.repository = repository;
         this.notificacao = notificacao;
+        this.whatsapp = whatsapp;
     }
 
     @Transactional
@@ -42,21 +45,29 @@ public class EntregaAuditoriaService {
         ));
 
         /*
-         * Avisa por e-mail só quando o status realmente mudou:
+         * Avisa por e-mail e WhatsApp só quando o status realmente mudou:
          * CRIADA (anterior nulo) e COMPROVANTE_ANEXADO (mesmo status)
          * não geram aviso.
          */
-        if (notificacao != null
-                && anterior != null
-                && novo != null
-                && anterior != novo) {
+        if (anterior != null && novo != null && anterior != novo) {
 
-            notificacao.notificarMudancaDeStatus(
-                    entrega,
-                    anterior,
-                    novo,
-                    responsavel
-            );
+            if (notificacao != null) {
+                notificacao.notificarMudancaDeStatus(
+                        entrega,
+                        anterior,
+                        novo,
+                        responsavel
+                );
+            }
+
+            if (whatsapp != null) {
+                whatsapp.notificarMudancaDeStatus(
+                        entrega,
+                        anterior,
+                        novo,
+                        responsavel
+                );
+            }
         }
     }
 

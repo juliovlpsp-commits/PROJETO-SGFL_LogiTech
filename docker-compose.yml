@@ -104,6 +104,20 @@ services:
       # Modo de baixa de estoque dos pedidos: IMEDIATA (padrão) ou RESERVA
       SGFL_STOCK_MODE: ${SGFL_STOCK_MODE:-IMEDIATA}
 
+      # Geocodificação e rota (padrões gratuitos, sem chave: Nominatim/OSRM)
+      SGFL_GEOCODER_URL: ${SGFL_GEOCODER_URL:-https://nominatim.openstreetmap.org}
+      SGFL_ROUTER_URL: ${SGFL_ROUTER_URL:-https://router.project-osrm.org}
+      # OSRM (padrão, sem chave) ou TOMTOM (com trânsito; exige SGFL_ROUTER_API_KEY)
+      SGFL_ROUTER_PROVIDER: ${SGFL_ROUTER_PROVIDER:-OSRM}
+      SGFL_ROUTER_API_KEY: ${SGFL_ROUTER_API_KEY:-}
+
+      # Avisos de status por WhatsApp via gateway HTTP (desligados por padrão)
+      SGFL_WHATSAPP_ENABLED: ${SGFL_WHATSAPP_ENABLED:-false}
+      SGFL_WHATSAPP_API_URL: ${SGFL_WHATSAPP_API_URL:-}
+      SGFL_WHATSAPP_TOKEN: ${SGFL_WHATSAPP_TOKEN:-}
+      SGFL_WHATSAPP_FROM: ${SGFL_WHATSAPP_FROM:-SGFL}
+      SGFL_WHATSAPP_TO: ${SGFL_WHATSAPP_TO:-}
+
     volumes:
       - sgfl_uploads:/app/uploads
 

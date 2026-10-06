@@ -210,3 +210,39 @@ textarea {
 .sgfl-rastreio-error { margin-top:14px; padding:11px 13px; border-radius:12px; border:1px solid rgba(216,106,120,.38); background:rgba(165,69,82,.10); color:#F0B0B8; font-size:11px; }
 .sgfl-rastreio-glow { position:absolute; width:420px;height:420px; border-radius:50%; background:radial-gradient(circle,rgba(165,69,82,.18),transparent 70%); filter:blur(28px); right:-100px; bottom:-120px; }
 @media (max-width:720px){ .sgfl-rastreio-shell h1{font-size:52px}.sgfl-rastreio-form,.sgfl-rastreio-info,.sgfl-rastreio-result-top{grid-template-columns:1fr}.sgfl-rastreio-status{justify-self:start}.sgfl-rastreio-info{grid-template-columns:1fr 1fr}.sgfl-rastreio-line{gap:4px} }
+
+/* Portal de rastreio — tema unico (vinho). Blocos alternativos mantidos
+   como comentario para reversao futura; ativos apenas vinho/claro. */
+/* ===== Mapa escuro (tema vinho) =====
+   Tiles Esri Dark Gray Canvas (gratuito, sem chave) com tinta azul
+   marinho via filtro CSS. O filtro vale so para os tiles
+   (.leaflet-tile-pane); marcadores, rota e controles ficam fora. */
+.mapa-escura .leaflet-tile-pane {
+  filter: sepia(0.55) hue-rotate(187deg) saturate(1.8) brightness(0.95) contrast(1.05);
+}
+.mapa-escura .leaflet-bar,
+.mapa-escura .leaflet-bar a {
+  border-color: var(--border) !important;
+  background: var(--surface);
+  color: var(--ink);
+}
+.mapa-escura .leaflet-bar a:hover {
+  background: var(--surface-alt);
+}
+.mapa-escura .leaflet-control-attribution {
+  background: var(--bg);
+  color: var(--ink-soft);
+}
+.mapa-escura .leaflet-control-attribution a {
+  color: var(--ink);
+}
+.mapa-escura .leaflet-popup-content-wrapper,
+.mapa-escura .leaflet-popup-tip {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
+}
+.mapa-escura .leaflet-popup-content {
+  margin: 8px 12px;
+  font-size: 12px;
+}

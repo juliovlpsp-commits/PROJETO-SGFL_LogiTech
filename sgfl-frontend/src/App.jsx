@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import Login from './Login';
 import Dashboard from './Dashboard';
-import GestaoComercial from './GestaoComercial';
 import api from './api';
 import RastreioPublico from './RastreioPublico';
 
@@ -67,15 +66,11 @@ export default function App() {
                     }
                 />
             ) : (
-                <>
-                    <Dashboard
-                        onLogout={
-                            handleLogout
-                        }
-                    />
-
-                    <GestaoComercial />
-                </>
+                <Dashboard
+                    onLogout={
+                        handleLogout
+                    }
+                />
             )}
         </div>
     );

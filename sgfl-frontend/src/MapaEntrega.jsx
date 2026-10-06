@@ -7,12 +7,21 @@ import 'leaflet/dist/leaflet.css';
  *
  * Renderiza os marcadores de origem/destino e a linha da rota quando a
  * entrega já tem coordenadas; caso contrário mostra instrução de
- * geocodificação. A rota exibida vem do backend (provedor OSRM ou
- * Haversine) — aqui só desenhamos os pontos.
+ * geocodificação. Quando o provedor devolve a geometria real
+ * (polyline do OSRM ou pontos do TomTom), a linha segue as estradas;
+ * sem geometria, desenhamos a reta estimada (tracejada).
+ *
+ * No tema escuro ({@code escuro}) os tiles trocam para o Esri Dark
+ * Gray Canvas (Base + rotulos Reference), gratuito e sem chave, com
+ * visual de editor preto/cinza; no claro, tiles OSM padrão. Marcadores
+ * e rota sempre seguem as cores do tema atual.
  */
-export default function MapaEntrega({ coordenadas, rota, tema }) {
+export default function MapaEntrega({ coordenadas, rota, tema, escuro = false }) {
 
     const containerRef = useRef(null);
+
+    const corOrigem = tema?.accent || '#A54552';
+    const corDestino = tema?.statuses?.ENTREGUE?.dot || '#2E7D32';
 
     const {
         latitudeOrigem,
@@ -33,15 +42,41 @@ export default function MapaEntrega({ coordenadas, rota, tema }) {
         const origem = [latitudeOrigem, longitudeOrigem];
         const destino = [latitudeDestino, longitudeDestino];
 
+        const geometriaReal =
+            rota?.geometria && rota.geometria.length >= 2
+                ? rota.geometria.map(ponto => [ponto.latitude, ponto.longitude])
+                : null;
+
+        const linha = geometriaReal ?? [origem, destino];
+
         const mapa = L.map(containerRef.current, {
             scrollWheelZoom: false,
             attributionControl: true
         });
 
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(mapa);
+        if (escuro) {
+            // Basemap escuro: Esri Dark Gray Canvas (sem chave) com tinta
+            // azul marinho aplicada por CSS (.mapa-escura .leaflet-tile-pane)
+            // — visual estilo Google Maps/CARTO dark, sem watermark. A
+            // camada Reference compoe os rotulos por cima da Base.
+            L.tileLayer(
+                'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+                {
+                    maxZoom: 16,
+                    attribution:
+                        '&copy; Esri, HERE, Garmin, FAO, NOAA, USGS, OpenStreetMap contributors, GIS User Community'
+                }
+            ).addTo(mapa);
+            L.tileLayer(
+                'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+                { maxZoom: 16 }
+            ).addTo(mapa);
+        } else {
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(mapa);
+        }
 
         const marcador = (cor) =>
             L.divIcon({
@@ -52,26 +87,30 @@ export default function MapaEntrega({ coordenadas, rota, tema }) {
                 iconAnchor: [8, 8]
             });
 
-        L.marker(origem, { icon: marcador('#A54552') })
+        L.marker(origem, { icon: marcador(corOrigem) })
             .addTo(mapa)
             .bindPopup('<strong>Origem</strong>');
 
-        L.marker(destino, { icon: marcador('#2E7D32') })
+        L.marker(destino, { icon: marcador(corDestino) })
             .addTo(mapa)
             .bindPopup('<strong>Destino</strong>');
 
-        L.polyline([origem, destino], {
-            color: '#A54552',
+        // Rota real = linha contínua; estimativa em linha reta = tracejada.
+        L.polyline(linha, {
+            color: corOrigem,
             weight: 3,
-            dashArray: '6 8'
+            dashArray: geometriaReal ? null : '6 8'
         }).addTo(mapa);
 
-        mapa.fitBounds(L.latLngBounds([origem, destino]).pad(0.35));
+        mapa.fitBounds(L.latLngBounds(linha).pad(0.35));
 
         return () => {
             mapa.remove();
         };
-    }, [latitudeOrigem, longitudeOrigem, latitudeDestino, longitudeDestino, possuiCoordenadas]);
+    }, [latitudeOrigem, longitudeOrigem, latitudeDestino, longitudeDestino,
+        possuiCoordenadas, rota, escuro, corOrigem, corDestino]);
+
+    const classeMapa = escuro ? 'mapa-escura' : '';
 
     if (!possuiCoordenadas) {
         return (
@@ -99,6 +138,7 @@ export default function MapaEntrega({ coordenadas, rota, tema }) {
         <div>
             <div
                 ref={containerRef}
+                className={classeMapa}
                 style={{
                     height: '320px',
                     width: '100%',

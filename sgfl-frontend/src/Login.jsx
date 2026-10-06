@@ -9,7 +9,7 @@ export default function Login({ onLoginSuccess }) {
     const [carregando, setCarregando] = useState(false);
 
     const loginSectionRef = useRef(null);
-    const { mode, toggle } = useTheme();
+    const { mode, toggle, theme } = useTheme();
 
     const dark = mode === 'dark';
 
@@ -56,7 +56,7 @@ export default function Login({ onLoginSuccess }) {
         });
     };
 
-    const styles = getStyles(dark);
+    const styles = getStyles(dark, theme);
 
     return (
         <main
@@ -366,21 +366,21 @@ export default function Login({ onLoginSuccess }) {
                             linear-gradient(
                                 90deg,
                                 transparent 0 48%,
-                                rgba(244, 190, 202, 0.07) 48.1%,
+                                rgba(${theme.accentRgbLight}, 0.07) 48.1%,
                                 transparent 48.2%
                             ),
                             linear-gradient(
                                 0deg,
                                 transparent 0 78%,
-                                rgba(244, 190, 202, 0.05) 78.1%,
+                                rgba(${theme.accentRgbLight}, 0.05) 78.1%,
                                 transparent 78.2%
                             );
                     }
 
                     .sgfl-login .sgfl-login-field:focus-within {
                         transform: translateY(-1px);
-                        border-color: ${dark ? '#C85A6E' : '#7A1F2B'} !important;
-                        box-shadow: 0 0 0 3px ${dark ? 'rgba(165,69,82,0.24)' : 'rgba(122,31,43,0.14)'};
+                        border-color: ${dark ? theme.accentFocus : '#7A1F2B'} !important;
+                        box-shadow: 0 0 0 3px ${dark ? `rgba(${theme.accentRgb},0.24)` : 'rgba(122,31,43,0.14)'};
                     }
 
                     /* Faixa vinho no topo do cartão (recortada pelas bordas arredondadas) */
@@ -391,7 +391,7 @@ export default function Login({ onLoginSuccess }) {
                         left: 0;
                         right: 0;
                         height: 4px;
-                        background: ${dark ? '#A54552' : '#7A1F2B'};
+                        background: ${dark ? theme.accent : '#7A1F2B'};
                         pointer-events: none;
                     }
 
@@ -401,7 +401,7 @@ export default function Login({ onLoginSuccess }) {
                     }
 
                     .sgfl-login .sgfl-login-field input::placeholder {
-                        color: ${dark ? 'rgba(244,233,236,0.34)' : 'rgba(42,18,25,0.34)'};
+                        color: ${dark ? `rgba(${theme.inkRgb},0.34)` : 'rgba(42,18,25,0.34)'};
                     }
 
                     .sgfl-login .sgfl-scroll-cta:hover {
@@ -417,7 +417,7 @@ export default function Login({ onLoginSuccess }) {
                         transform: translateY(-2px);
                         box-shadow:
                             0 18px 38px ${dark
-                    ? 'rgba(88, 22, 31, 0.34)'
+                    ? `rgba(${theme.hoverRgb}, 0.34)`
                     : 'rgba(78, 24, 34, 0.16)'},
                             inset 0 1px 0 rgba(255,255,255,0.18);
                     }
@@ -541,18 +541,18 @@ export default function Login({ onLoginSuccess }) {
     );
 }
 
-function getStyles(dark) {
+function getStyles(dark, theme) {
     const palette = dark
         ? {
-            ink: '#F4E9EC',
-            soft: '#B79AA3',
-            line: 'rgba(244,233,236,0.18)',
-            lineStrong: 'rgba(244,233,236,0.32)',
-            paper: '#1A0A10',
+            ink: theme.ink,
+            soft: theme.inkSoft,
+            line: `rgba(${theme.inkRgb},0.18)`,
+            lineStrong: `rgba(${theme.inkRgb},0.32)`,
+            paper: theme.paper,
             paperSoft: 'rgba(255,255,255,0.055)',
-            maroon: '#A54552',
-            maroonDeep: '#6E202D',
-            cream: '#FBEFF2',
+            maroon: theme.label ?? theme.accent,
+            maroonDeep: theme.accentDeep,
+            cream: theme.cream,
             shadow: 'rgba(0,0,0,0.42)'
         }
         : {
@@ -590,7 +590,7 @@ function getStyles(dark) {
             borderRadius: '50%',
             border: `1px solid ${palette.lineStrong}`,
             backgroundColor: dark
-                ? 'rgba(24,20,18,0.74)'
+                ? 'rgba(14,14,16,0.74)'
                 : 'rgba(255,250,244,0.80)',
             backdropFilter: 'blur(16px)',
             WebkitBackdropFilter: 'blur(16px)',
@@ -812,11 +812,11 @@ function getStyles(dark) {
             alignItems: 'center',
             padding: '56px 6vw 52px 6vw',
             backgroundColor: dark
-                ? '#14080C'
+                ? theme.bg
                 : '#F1E1E6',
             backgroundImage: dark
-                ? 'radial-gradient(circle at 78% 30%, rgba(165, 69, 82, 0.16), transparent 42%),' +
-                'radial-gradient(circle, rgba(244, 233, 236, 0.035) 0.7px, transparent 0.8px)'
+                ? `radial-gradient(circle at 78% 30%, rgba(${theme.accentRgb}, 0.16), transparent 42%),` +
+                `radial-gradient(circle, rgba(${theme.inkRgb}, 0.035) 0.7px, transparent 0.8px)`
                 : 'radial-gradient(circle at 78% 30%, rgba(165, 69, 82, 0.12), transparent 42%)',
             backgroundSize: dark ? 'auto, 8px 8px' : 'auto'
         },
@@ -903,10 +903,14 @@ function getStyles(dark) {
             width: '100%',
             padding: '30px 28px 20px',
             overflow: 'hidden',
-            border: `1px solid ${dark ? 'rgba(165,69,82,0.50)' : 'rgba(122,31,43,0.30)'}`,
+            border: `1px solid ${dark
+                ? (theme.washRgb
+                    ? `rgba(${theme.washRgb},0.20)`
+                    : `rgba(${theme.accentRgb},0.50)`)
+                : 'rgba(122,31,43,0.30)'}`,
             borderRadius: '18px',
             backgroundColor: dark
-                ? 'rgba(30,13,20,0.90)'
+                ? `rgba(${theme.surfaceRgb},0.90)`
                 : 'rgba(255,247,249,0.92)',
             backdropFilter: 'blur(22px)',
             WebkitBackdropFilter: 'blur(22px)',
@@ -964,11 +968,11 @@ function getStyles(dark) {
             gap: '8px',
             padding: '10px 11px',
             borderRadius: '10px',
-            border: `1px solid ${dark ? 'rgba(180,79,92,0.32)' : 'rgba(122,31,43,0.2)'}`,
+            border: `1px solid ${dark ? `rgba(${theme.dangerRgbLight},0.32)` : 'rgba(122,31,43,0.2)'}`,
             backgroundColor: dark
-                ? 'rgba(122,31,43,0.18)'
+                ? `rgba(${theme.dangerRgb},0.18)`
                 : 'rgba(122,31,43,0.07)',
-            color: dark ? '#F1B0B8' : palette.maroonDeep,
+            color: dark ? theme.danger : palette.maroonDeep,
             fontSize: '11px',
             lineHeight: 1.4
         },
@@ -978,7 +982,7 @@ function getStyles(dark) {
             height: '5px',
             flexShrink: 0,
             borderRadius: '50%',
-            backgroundColor: palette.maroon
+            backgroundColor: dark ? theme.danger : palette.maroon
         },
 
         field: {
@@ -1001,10 +1005,14 @@ function getStyles(dark) {
             gap: '10px',
             minHeight: '44px',
             padding: '0 14px',
-            border: `1px solid ${dark ? 'rgba(165,69,82,0.45)' : 'rgba(122,31,43,0.30)'}`,
+            border: `1px solid ${dark
+                ? (theme.washRgb
+                    ? `rgba(${theme.washRgb},0.18)`
+                    : `rgba(${theme.accentRgb},0.45)`)
+                : 'rgba(122,31,43,0.30)'}`,
             borderRadius: '12px',
             backgroundColor: dark
-                ? 'rgba(165,69,82,0.06)'
+                ? `rgba(${theme.washRgb ?? theme.accentRgb},0.06)`
                 : 'rgba(255,255,255,0.70)',
             transition:
                 'transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease'
@@ -1030,9 +1038,9 @@ function getStyles(dark) {
             marginTop: '6px',
             minHeight: '46px',
             padding: '0 16px 0 18px',
-            border: `1px solid ${dark ? '#B4546A' : palette.maroonDeep}`,
+            border: `1px solid ${dark ? theme.submitBorder : palette.maroonDeep}`,
             borderRadius: '12px',
-            backgroundColor: dark ? '#862234' : palette.maroonDeep,
+            backgroundColor: dark ? theme.submitBg : palette.maroonDeep,
             color: palette.cream,
             fontSize: '11px',
             fontWeight: 800,
@@ -1040,7 +1048,7 @@ function getStyles(dark) {
             textTransform: 'uppercase',
             cursor: 'pointer',
             boxShadow:
-                `0 12px 25px ${dark ? 'rgba(83,18,28,0.24)' : 'rgba(83,18,28,0.12)'}, inset 0 0 0 3px ${dark ? 'rgba(20,8,12,0.25)' : 'rgba(255,255,255,0.10)'}`,
+                `0 12px 25px ${dark ? `rgba(${theme.hoverRgb},0.24)` : 'rgba(83,18,28,0.12)'}, inset 0 0 0 3px ${dark ? `rgba(${theme.bgRgb},0.25)` : 'rgba(255,255,255,0.10)'}`,
             transition:
                 'transform 180ms ease, box-shadow 180ms ease, filter 180ms ease'
         },
@@ -1061,10 +1069,14 @@ function getStyles(dark) {
 }
 
 /**
- * Brasão do SGFL (original): escudo vinho com uma caixa/volume ao centro.
- * Mesmo desenho do favicon, para a identidade ficar consistente.
+ * Brasão do SGFL (original): escudo com uma caixa/volume ao centro.
+ * Mesmo desenho do favicon.
  */
 function Crest({ size = 46 }) {
+    const paradas = ['#B84D5E', '#8A2536', '#5E1A27'];
+    const contorno = '#F4D9DF';
+    const tracoInterno = '#FBEFF2';
+
     return (
         <svg
             width={size}
@@ -1082,29 +1094,29 @@ function Crest({ size = 46 }) {
                     x2="1"
                     y2="1"
                 >
-                    <stop offset="0" stopColor="#B84D5E" />
-                    <stop offset="0.55" stopColor="#8A2536" />
-                    <stop offset="1" stopColor="#5E1A27" />
+                    <stop offset="0" stopColor={paradas[0]} />
+                    <stop offset="0.55" stopColor={paradas[1]} />
+                    <stop offset="1" stopColor={paradas[2]} />
                 </linearGradient>
             </defs>
 
             <path
                 d="M24 2.5 43.5 8.5V28C43.5 41.5 34.5 50.5 24 54 13.5 50.5 4.5 41.5 4.5 28V8.5L24 2.5Z"
                 fill="url(#sgflCrestGradient)"
-                stroke="#F4D9DF"
+                stroke={contorno}
                 strokeWidth="1.2"
                 strokeLinejoin="round"
             />
 
             <path
                 d="M24 7 40 11.8V28C40 39.6 32.6 47 24 50.2 15.4 47 8 39.6 8 28V11.8L24 7Z"
-                stroke="#F4D9DF"
+                stroke={contorno}
                 strokeOpacity="0.45"
                 strokeWidth="0.8"
             />
 
             <g
-                stroke="#FBEFF2"
+                stroke={tracoInterno}
                 strokeWidth="1.8"
                 strokeLinejoin="round"
                 strokeLinecap="round"

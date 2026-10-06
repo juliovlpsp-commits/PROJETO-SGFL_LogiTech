@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import api from './api';
+import { useTheme } from './useTheme';
 
 export default function RastreioPublico({ codigoInicial = '' }) {
     const [codigo, setCodigo] = useState(codigoInicial);
     const [entrega, setEntrega] = useState(null);
     const [erro, setErro] = useState('');
     const [carregando, setCarregando] = useState(false);
+
+    // Variante global (vinho/neutro) para o portal acompanhar o tema.
+    const { variante } = useTheme();
 
     const consultar = async (event) => {
         event.preventDefault();
@@ -30,7 +34,7 @@ export default function RastreioPublico({ codigoInicial = '' }) {
     ];
 
     return (
-        <main className="sgfl-rastreio-page">
+        <main className={`sgfl-rastreio-page sgfl-tema-${variante}`}>
             <div className="sgfl-rastreio-glow" />
             <section className="sgfl-rastreio-shell">
                 <div className="sgfl-rastreio-brand">SGFL</div>

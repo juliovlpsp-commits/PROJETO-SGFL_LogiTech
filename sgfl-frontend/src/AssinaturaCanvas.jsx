@@ -31,10 +31,10 @@ export default function AssinaturaCanvas({ onChange, tema }) {
         contexto.lineWidth = 2.2;
         contexto.lineCap = 'round';
         contexto.lineJoin = 'round';
-        contexto.strokeStyle = '#A54552';
+        contexto.strokeStyle = tema?.accent || '#A54552';
 
         return undefined;
-    }, []);
+    }, [tema?.accent]);
 
     const obterPonto = (event) => {
         const retangulo = canvasRef.current.getBoundingClientRect();

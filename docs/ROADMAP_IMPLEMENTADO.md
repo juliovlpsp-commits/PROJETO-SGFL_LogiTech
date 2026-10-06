@@ -24,9 +24,12 @@
 | 4 | `ebcd753` | Geocodificação (Nominatim), rota com provedor externo (OSRM, queda para Haversine), histórico de ETA por entrega (migration V10) |
 | 5 | `d1c69ee` | Tela de custos por categoria com total em R$, comprovante com câmera e assinatura em canvas, mapa Leaflet com geocodificação e histórico de ETA, fila offline que reenvia sozinhas as ações sem conexão, `PUT /api/entregas/{id}/coordenadas` |
 | 6 | `78c4ea6` | Modo de estoque configurável (`SGFL_STOCK_MODE`): `IMEDIATA` (baixa na criação, padrão) ou `RESERVA` (bloqueio na criação e baixa na conclusão/despacho via `PATCH /api/pedidos/{id}/concluir`), migration V11 |
+| 7 | `adf71a0` | Correção do separador de coordenadas do OSRM e tratamento de `405`/`415` na API de rota |
+| 8 | `6c0ad1f` | Notificações por WhatsApp via gateway HTTP configurável (`SGFL_WHATSAPP_*`), rota real desenhada no mapa com geometria do provedor (OSRM/TomTom) + ETA com trânsito em tempo real (`SGFL_ROUTER_PROVIDER=TOMTOM`, `SGFL_ROUTER_API_KEY`), fallback Haversine, mapa Leaflet com Esri Dark Gray + tinta azul marinho e tema único vinho (`#14080C`) |
 
-## Próxima camada necessária para fechar o roadmap
+## Roadmap fechado
 
-- Notificações por WhatsApp via provedor configurado.
-- Trânsito em tempo real no ETA (hoje: OSRM público sem trânsito + velocidade média configurável).
-- Desenho da rota real no mapa (hoje: linha reta entre origem e destino — distância e tempo já vêm do provedor).
+Todas as fases previstas foram concluídas. Próximos passos em avaliação:
+
+- Modelos de mensagem de WhatsApp editáveis por ambiente (hoje: texto fixo no código).
+- Reenvio automático de avisos que falharem (hoje: falha apenas registrada em log).

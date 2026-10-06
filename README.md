@@ -450,15 +450,18 @@ O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda a cada `p
 ### 1. Migrações versionadas (Flyway)
 
 - O banco é gerenciado de forma determinística pelo **Flyway**; o Hibernate roda em `validate`, então a aplicação só sobe se o esquema bater com os mapeamentos JPA.
-- Scripts em `src/main/resources/db/migration/`:
-  - `V1__create_tables.sql` — tabelas `usuarios`, `veiculo`, `caminhao`, `furgao`, `motorista`, `entrega`, índices e FKs.
-  - `V2__seed_initial_data.sql` — carga idempotente de motoristas de demonstração.
-  - `V3__carregar_dados_locais.sql` — carga histórica do ambiente local (não edite: o Flyway valida o checksum).
-  - `V4__corrigir_nomes_colunas.sql` — ajusta nomes de colunas para os mapeamentos JPA.
-  - `V5__integridade_dados_e_concorrencia.sql` — normaliza dados, cria as constraints únicas de placa/CPF e os índices contra dupla alocação.
-  - `V6__clientes_produtos_estoque_pedidos.sql` — tabelas do módulo comercial.
-  - `V7__operacao_avancada.sql` — código de rastreio, janela de agendamento, coordenadas/geocodificação, `valor_frete`, linha do tempo (`entrega_evento`), comprovante e custos.
-  - `V8__latitude_longitude_double_precision.sql` — converte as coordenadas de `NUMERIC(9,6)` para `DOUBLE PRECISION`, alinhando o banco ao mapeamento `Double` das entidades (sem isso o `validate` do Hibernate impede a subida do backend).
+- Scripts em `src/main/resources/db/migration/` (11 migrações, `V1`..`V11`):
+   - `V1__create_tables.sql` — tabelas `usuarios`, `veiculo`, `caminhao`, `furgao`, `motorista`, `entrega`, índices e FKs.
+   - `V2__seed_initial_data.sql` — carga idempotente de motoristas de demonstração.
+   - `V3__carregar_dados_locais.sql` — carga histórica do ambiente local (não edite: o Flyway valida o checksum).
+   - `V4__corrigir_nomes_colunas.sql` — ajusta nomes de colunas para os mapeamentos JPA.
+   - `V5__integridade_dados_e_concorrencia.sql` — normaliza dados, cria as constraints únicas de placa/CPF e os índices contra dupla alocação.
+   - `V6__clientes_produtos_estoque_pedidos.sql` — tabelas do módulo comercial (`cliente`, `produto`, `estoque`, `pedido`, `item_pedido`).
+   - `V7__operacao_avancada.sql` — código de rastreio, janela de agendamento, coordenadas/geocodificação, `valor_frete`, linha do tempo (`entrega_evento`), comprovante e custos.
+   - `V8__latitude_longitude_double_precision.sql` — converte as coordenadas de `NUMERIC(9,6)` para `DOUBLE PRECISION`, alinhando o banco ao mapeamento `Double` das entidades (sem isso o `validate` do Hibernate impede a subida do backend).
+   - `V9__auditoria_transversal.sql` — tabela `auditoria_registro` para histórico de criação/alteração/exclusão de cliente, produto e pedido (`entidade`, `acao`, `dados_antes`/`dados_depois` em JSON).
+   - `V10__eta_historico.sql` — tabela `entrega_eta` para histórico de estimativas por entrega (`distancia_km`, `duracao_minutos`, `previsao_chegada`, `fonte`), um registro a cada 5 min.
+   - `V11__estoque_reservado.sql` — coluna `estoque.quantidade_reservada` para o modo `SGFL_STOCK_MODE=RESERVA` (bloqueio na criação do pedido, baixa na conclusão).
 - **Regra**: migrations são só estrutura e dados de referência — nunca dumps nem dados de demonstração novos.
 
 ### 2. Logging estruturado (JSON / correlation ID)
@@ -511,7 +514,7 @@ PROJETO-SGFL_LogiTech/
 │   │   ├── ratelimit/            # Token Bucket (memória e Redis)
 │   │   ├── logging/              # Logs estruturados + correlation ID
 │   │   └── config/               # Bootstrap do admin, paginação
-│   ├── main/resources/db/migration/   # Flyway V1..V8
+│   ├── main/resources/db/migration/   # Flyway V1..V11
 │   └── test/java/                # Suíte JUnit 5 + Testcontainers
 ├── sgfl-frontend/                # React + Vite
 │   ├── src/                      # Telas, hooks e api.js

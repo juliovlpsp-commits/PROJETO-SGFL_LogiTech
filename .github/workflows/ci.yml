@@ -25,7 +25,9 @@ jobs:
           cache: maven
 
       - name: Auditar dependências Maven
-        run: mvn -B org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7 -DskipTestScope=true
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: mvn -B org.owasp:dependency-check-maven:check -DnvdApiKey="${NVD_API_KEY}" -DfailBuildOnCVSS=7 -DskipTestScope=true
 
       # O runner do GitHub já tem Docker, necessário para o FlywayMigrationTest (Testcontainers).
       - name: Validar backend e empacotar (testes H2 + Testcontainers/PostgreSQL e Redis)

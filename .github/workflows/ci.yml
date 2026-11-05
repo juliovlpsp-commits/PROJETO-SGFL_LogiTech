@@ -12,7 +12,7 @@ on:
 jobs:
   backend-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 120
     steps:
       - name: Baixar código
         uses: actions/checkout@v7
@@ -23,6 +23,14 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
+
+      - name: Restaurar cache OWASP Dependency-Check
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: dependency-check-nvd-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            dependency-check-nvd-${{ runner.os }}-
 
       - name: Auditar dependências Maven
         env:

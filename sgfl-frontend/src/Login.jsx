@@ -1,12 +1,39 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import api from './api';
 import { useTheme } from './useTheme';
 
 export default function Login({ onLoginSuccess }) {
     const [email, setEmail] = useState('');
     const [senha, setSenha] = useState('');
+    const [confirmarSenha, setConfirmarSenha] = useState('');
     const [erro, setErro] = useState('');
+    const [mensagem, setMensagem] = useState('');
+    const [modo, setModo] = useState('login');
     const [carregando, setCarregando] = useState(false);
+
+    useEffect(() => {
+        const token = new URLSearchParams(window.location.search).get('token');
+        if (!token) return;
+
+        let ativo = true;
+        api.get('/auth/verificar-email', { params: { token } })
+            .then(() => {
+                if (ativo) {
+                    setModo('login');
+                    setMensagem('E-mail confirmado. Agora você já pode entrar.');
+                    window.history.replaceState({}, '', window.location.pathname);
+                }
+            })
+            .catch(() => {
+                if (ativo) {
+                    setModo('reenviar');
+                    setErro('Este link de confirmação é inválido ou expirou. Você pode solicitar outro.');
+                    window.history.replaceState({}, '', window.location.pathname);
+                }
+            });
+
+        return () => { ativo = false; };
+    }, []);
 
     const loginSectionRef = useRef(null);
     const { mode, toggle, theme } = useTheme();
@@ -21,6 +48,7 @@ export default function Login({ onLoginSuccess }) {
         }
 
         setErro('');
+        setMensagem('');
         setCarregando(true);
 
         try {
@@ -47,6 +75,51 @@ export default function Login({ onLoginSuccess }) {
         } finally {
             setCarregando(false);
         }
+    };
+
+    const handleCadastro = async (event) => {
+        event.preventDefault();
+        setErro('');
+        setMensagem('');
+        if (senha !== confirmarSenha) {
+            setErro('As senhas não coincidem.');
+            return;
+        }
+        setCarregando(true);
+        try {
+            await api.post('/auth/registrar', { username: email.trim(), password: senha });
+            setMensagem('Se o endereço puder ser cadastrado, enviaremos um link de confirmação. Verifique também sua caixa de spam.');
+            setModo('reenviar');
+        } catch (error) {
+            setErro(error.response?.data?.message || (error.response?.status === 500
+                ? 'Não foi possível enviar o e-mail de confirmação. Verifique a configuração de e-mail do sistema ou tente novamente mais tarde.'
+                : 'Não foi possível concluir o cadastro. Confira os dados e tente novamente.'));
+        } finally {
+            setCarregando(false);
+        }
+    };
+
+    const handleReenviar = async (event) => {
+        event.preventDefault();
+        setErro('');
+        setMensagem('');
+        setCarregando(true);
+        try {
+            await api.post('/auth/reenviar-verificacao', null, { params: { email: email.trim() } });
+            setMensagem('Se houver uma conta pendente para esse endereço, enviaremos um novo link de confirmação.');
+        } catch (error) {
+            setErro(error.response?.data?.message || (error.response?.status === 500
+                ? 'O servidor não conseguiu enviar o e-mail. A configuração SMTP pode estar incompleta.'
+                : 'Não foi possível solicitar o reenvio. Tente novamente.'));
+        } finally {
+            setCarregando(false);
+        }
+    };
+
+    const mudarModo = (novoModo) => {
+        setModo(novoModo);
+        setErro('');
+        setMensagem('');
     };
 
     const irParaLogin = () => {
@@ -214,27 +287,27 @@ export default function Login({ onLoginSuccess }) {
                             </div>
 
                             <form
-                                onSubmit={handleSubmit}
+                                onSubmit={modo === 'login' ? handleSubmit : modo === 'cadastro' ? handleCadastro : handleReenviar}
                                 style={styles.form}
                             >
                                 <div style={styles.formIntro}>
                                     <h3 style={styles.formTitle}>
-                                        Entrar no sistema
+                                        {modo === 'login' ? 'Entrar no sistema' : modo === 'cadastro' ? 'Criar conta' : 'Confirmar e-mail'}
                                     </h3>
 
                                     <p style={styles.formSubtitle}>
-                                        Use suas credenciais de acesso.
+                                        {modo === 'login' ? 'Use suas credenciais de acesso.' : modo === 'cadastro' ? 'Cadastre seu e-mail para receber o link de confirmação.' : 'Informe seu e-mail para solicitar um novo link.'}
                                     </p>
                                 </div>
 
                                 {erro && (
-                                    <div
-                                        style={styles.error}
-                                        role="alert"
-                                    >
+                                    <div style={styles.error} role="alert">
                                         <span style={styles.errorDot} />
                                         {erro}
                                     </div>
+                                )}
+                                {mensagem && (
+                                    <div style={styles.success} role="status">{mensagem}</div>
                                 )}
 
                                 <label style={styles.field}>
@@ -264,7 +337,7 @@ export default function Login({ onLoginSuccess }) {
                                     </div>
                                 </label>
 
-                                <label style={styles.field}>
+                                {modo !== 'reenviar' && <label style={styles.field}>
                                     <span style={styles.label}>
                                         Senha
                                     </span>
@@ -284,12 +357,33 @@ export default function Login({ onLoginSuccess }) {
                                                 )
                                             }
                                             style={styles.input}
-                                            autoComplete="current-password"
+                                            autoComplete={modo === 'cadastro' ? 'new-password' : 'current-password'}
+                                            minLength={modo === 'cadastro' ? 8 : undefined}
+                                            maxLength={modo === 'cadastro' ? 72 : undefined}
                                             required
                                             disabled={carregando}
                                         />
                                     </div>
-                                </label>
+                                </label>}
+
+                                {modo === 'cadastro' && <label style={styles.field}>
+                                    <span style={styles.label}>Confirmar senha</span>
+                                    <div className="sgfl-login-field" style={styles.inputShell}>
+                                        <LockIcon />
+                                        <input
+                                            type="password"
+                                            placeholder="Repita sua senha"
+                                            value={confirmarSenha}
+                                            onChange={(event) => setConfirmarSenha(event.target.value)}
+                                            style={styles.input}
+                                            autoComplete="new-password"
+                                            minLength={8}
+                                            maxLength={72}
+                                            required
+                                            disabled={carregando}
+                                        />
+                                    </div>
+                                </label>}
 
                                 <button
                                     type="submit"
@@ -301,14 +395,24 @@ export default function Login({ onLoginSuccess }) {
                                     disabled={carregando}
                                 >
                                     <span>
-                                        {carregando
-                                            ? 'Autenticando...'
-                                            : 'Entrar'}
+                                        {carregando ? 'Aguarde...' : modo === 'login' ? 'Entrar' : modo === 'cadastro' ? 'Criar conta' : 'Reenviar link'}
                                     </span>
 
                                     <ArrowRightIcon />
                                 </button>
                             </form>
+
+                            <div style={styles.authLinks}>
+                                {modo === 'login' ? (
+                                    <>
+                                        <button type="button" onClick={() => mudarModo('cadastro')} style={styles.linkButton}>Criar uma conta</button>
+                                        <button type="button" onClick={() => mudarModo('reenviar')} style={styles.linkButton}>Não recebeu o e-mail?</button>
+                                    </>
+                                ) : (
+                                    <button type="button" onClick={() => mudarModo('login')} style={styles.linkButton}>Voltar para entrar</button>
+                                )}
+                                {modo === 'cadastro' && <p style={styles.formSubtitle}>O cadastro cria uma conta de operador. A confirmação do e-mail é necessária antes do primeiro acesso.</p>}
+                            </div>
 
                             <div style={styles.cardBottom}>
                                 <span>
@@ -975,6 +1079,37 @@ function getStyles(dark, theme) {
             color: dark ? theme.danger : palette.maroonDeep,
             fontSize: '11px',
             lineHeight: 1.4
+        },
+
+        success: {
+            padding: '10px 11px',
+            borderRadius: '10px',
+            border: `1px solid ${dark ? 'rgba(120,200,140,0.35)' : 'rgba(46,125,50,0.25)'}`,
+            backgroundColor: dark ? 'rgba(46,125,50,0.16)' : 'rgba(46,125,50,0.08)',
+            color: dark ? '#9AD6A5' : '#25612A',
+            fontSize: '11px',
+            lineHeight: 1.45
+        },
+
+        authLinks: {
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '10px',
+            marginTop: '16px',
+            textAlign: 'center'
+        },
+
+        linkButton: {
+            border: 'none',
+            padding: '4px 6px',
+            background: 'transparent',
+            color: palette.maroon,
+            fontSize: '11px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            textDecoration: 'underline',
+            textUnderlineOffset: '3px'
         },
 
         errorDot: {

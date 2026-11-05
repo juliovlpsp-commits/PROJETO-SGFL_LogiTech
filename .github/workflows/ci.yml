@@ -24,6 +24,9 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Auditar dependências Maven
+        run: mvn -B org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7 -DskipTestScope=true
+
       # O runner do GitHub já tem Docker, necessário para o FlywayMigrationTest (Testcontainers).
       - name: Validar backend e empacotar (testes H2 + Testcontainers/PostgreSQL e Redis)
         run: mvn -B verify
@@ -54,6 +57,9 @@ jobs:
 
       - name: Instalar dependências
         run: npm ci
+
+      - name: Verificar vulnerabilidades em dependências de produção
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Lint
         run: npm run lint
@@ -97,3 +103,15 @@ jobs:
           name: playwright-report
           path: sgfl-frontend/test-results/
           if-no-files-found: ignore
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v7
+      - name: Revisar dependências da pull request
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: always

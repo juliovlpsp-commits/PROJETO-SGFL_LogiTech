@@ -80,6 +80,20 @@ public class ImportacaoController {
         if (arquivo == null || arquivo.isEmpty()) {
             throw new RegraNegocioException("Envie um arquivo CSV.");
         }
+        if (arquivo.getSize() > 5L * 1024 * 1024) {
+            throw new RegraNegocioException("O arquivo CSV deve ter no máximo 5 MB.");
+        }
+        String filename = arquivo.getOriginalFilename();
+        if (filename == null || !filename.toLowerCase(Locale.ROOT).endsWith(".csv")) {
+            throw new RegraNegocioException("Envie um arquivo com extensão .csv.");
+        }
+        String contentType = arquivo.getContentType();
+        if (contentType != null && !contentType.isBlank()
+                && !contentType.equalsIgnoreCase("text/csv")
+                && !contentType.equalsIgnoreCase("application/vnd.ms-excel")
+                && !contentType.equalsIgnoreCase("application/octet-stream")) {
+            throw new RegraNegocioException("O arquivo enviado não parece ser um CSV.");
+        }
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(arquivo.getInputStream(), StandardCharsets.UTF_8))) {
             String cabecalho = reader.readLine();
             if (cabecalho == null) throw new RegraNegocioException("CSV vazio.");

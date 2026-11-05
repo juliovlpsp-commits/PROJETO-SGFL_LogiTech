@@ -79,6 +79,8 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health/**", "/actuator/prometheus").permitAll()
 
                         .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/verificar-email").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/reenviar-verificacao").permitAll()
 
                         .requestMatchers(HttpMethod.GET, "/api/rastreio/**").permitAll()
 

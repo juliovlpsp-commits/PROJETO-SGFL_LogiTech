@@ -94,7 +94,7 @@ public class GeocodificacaoService {
         }
 
         JsonNode resultados = buscar(
-                "/search?format=jsonv2&limit=1&q="
+                "/search?format=jsonv2&limit=1&countrycodes=br&accept-language=pt-BR&q="
                         + codificar(normalizado)
         );
 
@@ -108,10 +108,13 @@ public class GeocodificacaoService {
         }
 
         JsonNode item = resultados.get(0);
+        double latitude = paraDouble(item, "lat");
+        double longitude = paraDouble(item, "lon");
+        validarCoordenada(latitude, longitude);
 
         GeocodificacaoResponse resposta = new GeocodificacaoResponse(
-                paraDouble(item, "lat"),
-                paraDouble(item, "lon"),
+                latitude,
+                longitude,
                 item.path("display_name").asText(null),
                 FONTE
         );

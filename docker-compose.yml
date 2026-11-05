@@ -100,6 +100,8 @@ services:
       SGFL_MAIL_TO: ${SGFL_MAIL_TO:-}
       SGFL_MAIL_STARTTLS: ${SGFL_MAIL_STARTTLS:-true}
       SGFL_PUBLIC_URL: ${SGFL_PUBLIC_URL:-http://localhost:5173}
+      UPLOAD_MAX_FILE_SIZE: ${UPLOAD_MAX_FILE_SIZE:-5MB}
+      UPLOAD_MAX_REQUEST_SIZE: ${UPLOAD_MAX_REQUEST_SIZE:-6MB}
 
       # Modo de baixa de estoque dos pedidos: IMEDIATA (padrão) ou RESERVA
       SGFL_STOCK_MODE: ${SGFL_STOCK_MODE:-IMEDIATA}
@@ -121,8 +123,9 @@ services:
     volumes:
       - sgfl_uploads:/app/uploads
 
+    # API disponível apenas no host local; o acesso público passa pelo Nginx.
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
 
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8081/actuator/health/readiness > /dev/null"]

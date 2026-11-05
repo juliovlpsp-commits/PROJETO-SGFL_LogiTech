@@ -20,6 +20,9 @@ public class Usuario {
     @Column(nullable = false)
     private String password;
 
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified = true;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Perfil perfil;
@@ -42,6 +45,8 @@ public class Usuario {
     public void setPerfil(Perfil perfil) { this.perfil = perfil; }
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+    public boolean isEmailVerified() { return emailVerified; }
+    public void setEmailVerified(boolean emailVerified) { this.emailVerified = emailVerified; }
 
 
 }

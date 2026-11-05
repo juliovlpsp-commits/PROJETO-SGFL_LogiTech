@@ -86,14 +86,30 @@ public class EntregaOperacaoController {
         comprovante.setObservacao(request.observacao());
 
         if (foto != null && !foto.isEmpty()) {
-            String contentType = foto.getContentType();
-            if (contentType == null || !contentType.startsWith("image/")) {
-                throw new RegraNegocioException("O comprovante fotográfico deve ser uma imagem.");
+            if (foto.getSize() > 5L * 1024 * 1024) {
+                throw new RegraNegocioException("A foto do comprovante deve ter no máximo 5 MB.");
             }
-            String ext = switch (contentType) {
-                case "image/png" -> ".png";
-                case "image/webp" -> ".webp";
-                default -> ".jpg";
+            String contentType = foto.getContentType();
+            String ext = switch (contentType == null ? "" : contentType.toLowerCase(java.util.Locale.ROOT)) {
+                case "image/png" -> {
+                    if (!temAssinatura(foto, new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A})) {
+                        throw new RegraNegocioException("O conteúdo não corresponde a uma imagem PNG válida.");
+                    }
+                    yield ".png";
+                }
+                case "image/jpeg", "image/jpg" -> {
+                    if (!temAssinatura(foto, new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF})) {
+                        throw new RegraNegocioException("O conteúdo não corresponde a uma imagem JPEG válida.");
+                    }
+                    yield ".jpg";
+                }
+                case "image/webp" -> {
+                    if (!temAssinatura(foto, new byte[]{'R', 'I', 'F', 'F'}) || !temAssinaturaNoOffset(foto, 8, new byte[]{'W', 'E', 'B', 'P'})) {
+                        throw new RegraNegocioException("O conteúdo não corresponde a uma imagem WebP válida.");
+                    }
+                    yield ".webp";
+                }
+                default -> throw new RegraNegocioException("Envie uma imagem PNG, JPEG ou WebP válida.");
             };
             String nomeArquivo = "entrega-" + id + "-" + UUID.randomUUID() + ext;
             Path destino = pastaUploads.resolve(nomeArquivo).normalize();
@@ -108,6 +124,18 @@ public class EntregaOperacaoController {
         auditoriaService.registrar(entrega, "COMPROVANTE_ANEXADO", entrega.getStatus(), entrega.getStatus(),
                 "Comprovante registrado por " + request.nomeRecebedor().trim());
         return ResponseEntity.ok(ComprovanteEntregaResponse.from(salvo));
+    }
+
+    private boolean temAssinatura(MultipartFile file, byte[] expected) throws IOException {
+        return temAssinaturaNoOffset(file, 0, expected);
+    }
+
+    private boolean temAssinaturaNoOffset(MultipartFile file, int offset, byte[] expected) throws IOException {
+        try (var input = file.getInputStream()) {
+            if (input.skip(offset) != offset) return false;
+            byte[] actual = input.readNBytes(expected.length);
+            return java.util.Arrays.equals(actual, expected);
+        }
     }
 
     /**

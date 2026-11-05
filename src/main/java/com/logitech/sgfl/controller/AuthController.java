@@ -29,6 +29,7 @@ public class AuthController {
     private final JwtService jwtService;
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
+    private final com.logitech.sgfl.service.EmailVerificationService emailVerificationService;
 
     @org.springframework.beans.factory.annotation.Value("${jwt.expiration-ms:86400000}")
     private long expirationMs;
@@ -41,13 +42,15 @@ public class AuthController {
             UserDetailsService userDetailsService,
             JwtService jwtService,
             UsuarioRepository usuarioRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            com.logitech.sgfl.service.EmailVerificationService emailVerificationService
     ) {
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
         this.jwtService = jwtService;
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
+        this.emailVerificationService = emailVerificationService;
     }
 
     /** Autentica e grava o JWT em um cookie HttpOnly. */
@@ -124,10 +127,7 @@ public class AuthController {
          */
         if (usuarioRepository.existsByUsername(username)
                 || usuarioRepository.existsByEmail(username)) {
-
-            return ResponseEntity
-                    .status(HttpStatus.CONFLICT)
-                    .body("Usuário já existe!");
+            return ResponseEntity.accepted().body("Se o endereço puder ser cadastrado, enviaremos um link de verificação.");
         }
 
         Usuario usuario = new Usuario();
@@ -141,10 +141,20 @@ public class AuthController {
          */
         usuario.setPerfil(Perfil.ROLE_OPERADOR);
 
-        usuarioRepository.save(usuario);
+        emailVerificationService.register(usuario);
+        return ResponseEntity.accepted().body("Se o endereço puder ser cadastrado, enviaremos um link de verificação.");
+    }
 
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body("Usuário registrado com sucesso!");
+    @GetMapping("/verificar-email")
+    public ResponseEntity<String> verificarEmail(@RequestParam String token) {
+        return emailVerificationService.verify(token)
+                ? ResponseEntity.ok("E-mail verificado.")
+                : ResponseEntity.badRequest().body("Link inválido ou expirado.");
+    }
+
+    @PostMapping("/reenviar-verificacao")
+    public ResponseEntity<String> reenviarVerificacao(@RequestParam String email) {
+        emailVerificationService.resend(email.trim());
+        return ResponseEntity.accepted().body("Se houver uma conta pendente para esse endereço, enviaremos um link de verificação.");
     }
 }

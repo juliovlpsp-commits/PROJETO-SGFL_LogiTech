@@ -28,6 +28,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         return new User(
                 usuario.getEmail(),
                 usuario.getPassword(),
+                usuario.isEmailVerified(),
+                true,
+                true,
+                true,
                 Collections.singletonList(new SimpleGrantedAuthority(usuario.getPerfil().name()))
         );
     }

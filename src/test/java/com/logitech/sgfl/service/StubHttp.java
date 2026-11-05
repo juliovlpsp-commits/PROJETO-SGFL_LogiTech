@@ -21,30 +21,32 @@ final class StubHttp implements AutoCloseable {
     private final AtomicReference<String> ultimoMetodo = new AtomicReference<>();
     private final AtomicReference<String> ultimoCorpo = new AtomicReference<>();
     private final AtomicInteger quantidadeRequisicoes = new AtomicInteger();
+    private final AtomicReference<Resposta> resposta = new AtomicReference<>();
+
+    private record Resposta(int status, String corpo) {}
 
     StubHttp(int status, String corpo) throws IOException {
         this.servidor = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        responder(status, corpo);
-        this.servidor.start();
-    }
-
-    void responder(int status, String corpo) {
+        this.resposta.set(new Resposta(status, corpo));
         servidor.createContext("/", exchange -> {
             ultimoCaminho.set(exchange.getRequestURI().toString());
             ultimoMetodo.set(exchange.getRequestMethod());
             quantidadeRequisicoes.incrementAndGet();
             try (var corpoRequisicao = exchange.getRequestBody()) {
-                ultimoCorpo.set(
-                        new String(corpoRequisicao.readAllBytes(), StandardCharsets.UTF_8)
-                );
+                ultimoCorpo.set(new String(corpoRequisicao.readAllBytes(), StandardCharsets.UTF_8));
             }
-
-            byte[] bytes = corpo.getBytes(StandardCharsets.UTF_8);
+            Resposta atual = this.resposta.get();
+            byte[] bytes = atual.corpo().getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
-            exchange.sendResponseHeaders(status, bytes.length);
+            exchange.sendResponseHeaders(atual.status(), bytes.length);
             exchange.getResponseBody().write(bytes);
             exchange.close();
         });
+        this.servidor.start();
+    }
+
+    void responder(int status, String corpo) {
+        this.resposta.set(new Resposta(status, corpo));
     }
 
     String url() {

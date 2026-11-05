@@ -3,6 +3,9 @@
 ## Controles aplicados
 
 - Senhas de usuário com BCrypt; JWT em cookie `HttpOnly`, `SameSite=Lax` e expiração configurável.
+- Cadastro público com verificação de endereço de e-mail por token aleatório de uso único (persistido somente como SHA-256), expiração de 24 horas e bloqueio de login até a confirmação.
+- Limites de tamanho para uploads de imagens e CSV; imagens aceitas por tipo e assinatura do conteúdo.
+- A tela pública de rastreio mostra a rota planejada entre origem e destino e atualiza o status periodicamente. Posição GPS ao vivo requer integração com dispositivo/rastreador e não é simulada.
 - Token CSRF em cookie próprio e header `X-XSRF-TOKEN` para operações mutáveis no navegador.
 - CORS com lista explícita de origens, credenciais habilitadas e headers permitidos enumerados.
 - Autorização por perfil para operações da frota, clientes e exclusões.

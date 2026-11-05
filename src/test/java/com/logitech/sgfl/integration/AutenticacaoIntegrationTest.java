@@ -132,11 +132,12 @@ class AutenticacaoIntegrationTest {
                 "/api/auth/registrar", HttpMethod.POST,
                 new HttpEntity<>(new RegistroRequest("novo@exemplo.com", "senhaSegura1"), csrfHeaders()), String.class);
 
-        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
         assertThat(usuarioRepository.findByEmail("novo@exemplo.com"))
                 .get()
                 .extracting(Usuario::getPerfil)
                 .isEqualTo(Perfil.ROLE_OPERADOR);
+        assertThat(usuarioRepository.findByEmail("novo@exemplo.com").orElseThrow().isEmailVerified()).isFalse();
     }
 
     @Test

@@ -86,12 +86,16 @@ O código está separado em `controller`, `service`, `repository`, `me` (entidad
 ## Autenticação
 
 - `GET /api/auth/csrf` — **público**; entrega o cookie CSRF usado pelo Axios nas operações que alteram dados.
-- `POST /api/auth/registrar` — cadastro público; cria sempre um usuário `ROLE_OPERADOR` (senha de 8 a 72 caracteres). O `username` informado também é usado como e-mail de login.
+- `POST /api/auth/registrar` — cadastro público; cria sempre um usuário `ROLE_OPERADOR` não verificado (senha de 8 a 72 caracteres). O `username` informado também é usado como e-mail de login. Uma resposta genérica `202` é retornada para evitar enumeração de contas.
+- `GET /api/auth/verificar-email?token=...` — valida o token de uso único enviado por e-mail (expira em 24 horas).
+- `POST /api/auth/reenviar-verificacao?email=...` — reenvia o link quando a conta existe e ainda não foi verificada; resposta sempre genérica.
 - `POST /api/auth/login` — autentica por **email** e senha e configura um cookie de sessão JWT `HttpOnly`.
 - `GET /api/auth/session` — verifica se o cookie representa uma sessão válida.
 - `POST /api/auth/logout` — encerra a sessão removendo o cookie.
 
 O navegador envia o cookie JWT automaticamente nas chamadas à API. Ele é `HttpOnly`, `SameSite=Lax` e expira em 24h por padrão (configurável via `JWT_EXPIRATION_MS`). Um cookie CSRF separado é enviado pelo Axios como header `X-XSRF-TOKEN` em operações que alteram dados. Em produção com HTTPS, configure `APP_COOKIE_SECURE=true`.
+
+O cadastro público cria contas pendentes e exige confirmação por link enviado ao e-mail (token de uso único com validade de 24h). Configure SMTP com `SGFL_MAIL_ENABLED=true`, host, porta e credenciais. Sem SMTP configurado, novos cadastros não conseguem confirmar o endereço e entrar.
 
 Sem token, ou com token inválido/expirado, a API responde **401**. Autenticado, mas sem permissão para a operação, responde **403**.
 
@@ -133,7 +137,9 @@ Depois do primeiro acesso, pode voltar `BOOTSTRAP_ADMIN_ENABLED` para `false`.
 | Método | Rota | Acesso | Descrição |
 |---|---|---|---|
 | GET | `/api/auth/csrf` | público | Entrega o token CSRF |
-| POST | `/api/auth/registrar` | público | Cria usuário `ROLE_OPERADOR` |
+| POST | `/api/auth/registrar` | público | Registra usuário `ROLE_OPERADOR` pendente de verificação |
+| GET | `/api/auth/verificar-email?token=...` | público | Verifica e-mail com token único |
+| POST | `/api/auth/reenviar-verificacao?email=...` | público | Reenvia link com resposta não enumerável |
 | POST | `/api/auth/login` | público | Login por e-mail/senha, define cookie JWT |
 | GET | `/api/auth/session` | autenticado | Valida a sessão atual |
 | POST | `/api/auth/logout` | autenticado | Remove o cookie de sessão |
@@ -292,6 +298,7 @@ Nada de senha ou segredo no `application.properties` — tudo via variáveis de 
 | `SGFL_MAIL_FROM` | Remetente das mensagens | `noreply@sgfl.local` |
 | `SGFL_MAIL_TO` | Destinatários separados por vírgula | vazio |
 | `SGFL_MAIL_STARTTLS` | Usa STARTTLS na conexão SMTP | `true` |
+| `SGFL_PUBLIC_URL` | URL pública usada para montar links de verificação | `http://localhost:5173` |
 | `SGFL_WHATSAPP_ENABLED` | Habilita o aviso de mudança de status por WhatsApp | `false` |
 | `SGFL_WHATSAPP_API_URL` | Endpoint HTTP do gateway no contrato JSON `{"to","from","message"}` | vazio |
 | `SGFL_WHATSAPP_TOKEN` | Token enviado como `Authorization: Bearer` (opcional) | vazio |
@@ -450,7 +457,7 @@ O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda a cada `p
 ### 1. Migrações versionadas (Flyway)
 
 - O banco é gerenciado de forma determinística pelo **Flyway**; o Hibernate roda em `validate`, então a aplicação só sobe se o esquema bater com os mapeamentos JPA.
-- Scripts em `src/main/resources/db/migration/` (11 migrações, `V1`..`V11`):
+- Scripts em `src/main/resources/db/migration/` (13 migrações, `V1`..`V11` e `V13`..`V14`):
    - `V1__create_tables.sql` — tabelas `usuarios`, `veiculo`, `caminhao`, `furgao`, `motorista`, `entrega`, índices e FKs.
    - `V2__seed_initial_data.sql` — carga idempotente de motoristas de demonstração.
    - `V3__carregar_dados_locais.sql` — carga histórica do ambiente local (não edite: o Flyway valida o checksum).
@@ -514,7 +521,7 @@ PROJETO-SGFL_LogiTech/
 │   │   ├── ratelimit/            # Token Bucket (memória e Redis)
 │   │   ├── logging/              # Logs estruturados + correlation ID
 │   │   └── config/               # Bootstrap do admin, paginação
-│   ├── main/resources/db/migration/   # Flyway V1..V11
+│   ├── main/resources/db/migration/   # Flyway V1..V13
 │   └── test/java/                # Suíte JUnit 5 + Testcontainers
 ├── sgfl-frontend/                # React + Vite
 │   ├── src/                      # Telas, hooks e api.js

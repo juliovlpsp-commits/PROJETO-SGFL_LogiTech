@@ -17,7 +17,12 @@ public record RastreioPublicoResponse(
         LocalDateTime iniciadaEm,
         LocalDateTime entregueEm,
         String veiculo,
-        String motorista
+        String motorista,
+        Double latitudeOrigem,
+        Double longitudeOrigem,
+        Double latitudeDestino,
+        Double longitudeDestino,
+        RotaEstimativaResponse rota
 ) {
     public static RastreioPublicoResponse from(Entrega e) {
         return new RastreioPublicoResponse(
@@ -32,7 +37,18 @@ public record RastreioPublicoResponse(
                 e.getIniciadaEm(),
                 e.getEntregueEm(),
                 e.getVeiculo() == null ? null : e.getVeiculo().getPlaca(),
-                e.getMotorista() == null ? null : e.getMotorista().getNome()
+                e.getMotorista() == null ? null : e.getMotorista().getNome(),
+                e.getLatitudeOrigem(),
+                e.getLongitudeOrigem(),
+                e.getLatitudeDestino(),
+                e.getLongitudeDestino(),
+                null
         );
+    }
+
+    public RastreioPublicoResponse comRota(RotaEstimativaResponse estimativa) {
+        return new RastreioPublicoResponse(codigoRastreio, entregaId, descricao, origem, destino,
+                status, agendadaInicio, agendadaFim, iniciadaEm, entregueEm, veiculo, motorista,
+                latitudeOrigem, longitudeOrigem, latitudeDestino, longitudeDestino, estimativa);
     }
 }

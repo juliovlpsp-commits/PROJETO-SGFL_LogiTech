@@ -571,17 +571,19 @@ export default function Dashboard({ onLogout }) {
         try {
             const coordenadas = { ...coordenadasMapa };
 
-            if (!coordenadas.latitudeOrigem || !coordenadas.longitudeOrigem) {
+            if (coordenadas.latitudeOrigem == null || coordenadas.longitudeOrigem == null) {
+                if (!entregaMapa.enderecoOrigem?.trim()) throw new Error('Informe um endereço de origem válido antes de geocodificar.');
                 const origem = await request(
-                    `/geocodificacao?endereco=${encodeURIComponent(entregaMapa.enderecoOrigem || '')}`
+                    `/geocodificacao?endereco=${encodeURIComponent(entregaMapa.enderecoOrigem.trim())}`
                 );
                 coordenadas.latitudeOrigem = origem.latitude;
                 coordenadas.longitudeOrigem = origem.longitude;
             }
 
-            if (!coordenadas.latitudeDestino || !coordenadas.longitudeDestino) {
+            if (coordenadas.latitudeDestino == null || coordenadas.longitudeDestino == null) {
+                if (!entregaMapa.enderecoDestino?.trim()) throw new Error('Informe um endereço de destino válido antes de geocodificar.');
                 const destino = await request(
-                    `/geocodificacao?endereco=${encodeURIComponent(entregaMapa.enderecoDestino || '')}`
+                    `/geocodificacao?endereco=${encodeURIComponent(entregaMapa.enderecoDestino.trim())}`
                 );
                 coordenadas.latitudeDestino = destino.latitude;
                 coordenadas.longitudeDestino = destino.longitude;
@@ -598,11 +600,12 @@ export default function Dashboard({ onLogout }) {
             });
 
             setCoordenadasMapa(coordenadas);
-            setMensagemMapa('Coordenadas geocodificadas e salvas.');
+            setEntregaMapa(atual => ({ ...atual, ...coordenadas }));
+            setMensagemMapa('Coordenadas geocodificadas e salvas. Confirme se os marcadores correspondem aos endereços informados.');
             await carregarRota(entregaMapa.id);
         } catch (error) {
             tratarErro(error, 'Não foi possível geocodificar os endereços.');
-            setMensagemMapa('Falha na geocodificação — verifique os endereços ou tente mais tarde.');
+            setMensagemMapa(error.message || 'Falha na geocodificação — verifique os endereços ou tente mais tarde.');
         } finally {
             setGeocodificandoMapa(false);
         }

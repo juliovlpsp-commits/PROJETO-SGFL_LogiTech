@@ -32,10 +32,25 @@ jobs:
           restore-keys: |
             dependency-check-nvd-${{ runner.os }}-
 
-      - name: Auditar dependências Maven
+      - name: Auditar dependências Maven (até 3 tentativas)
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: mvn -B org.owasp:dependency-check-maven:check -DnvdApiKey="${NVD_API_KEY}" -DfailBuildOnCVSS=7 -DskipTestScope=true
+        run: |
+          for attempt in 1 2 3; do
+            echo "Auditoria OWASP: tentativa ${attempt}/3"
+            if mvn -B org.owasp:dependency-check-maven:check -DnvdApiKey="${NVD_API_KEY}" -DfailBuildOnCVSS=7 -DskipTestScope=true; then
+              exit 0
+            fi
+
+            if [ "${attempt}" -lt 3 ]; then
+              delay=$((attempt * 60))
+              echo "Auditoria falhou; nova tentativa em ${delay}s..."
+              sleep "${delay}"
+            fi
+          done
+
+          echo "Auditoria OWASP falhou após 3 tentativas."
+          exit 1
 
       # O runner do GitHub já tem Docker, necessário para o FlywayMigrationTest (Testcontainers).
       - name: Validar backend e empacotar (testes H2 + Testcontainers/PostgreSQL e Redis)
